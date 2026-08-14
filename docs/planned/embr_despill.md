@@ -70,7 +70,7 @@ Coupled は参照が主に R だけなので、Green の6式ほど差が出な�
 
 #### Independent（緑式＋青式を同時）
 
-同じ Algorithm ID で、Green 用クランプと Blue 用クランプを両方適用（順序: 先に G、次に B。または同時に元 `rgb` から計算して合成）。
+同じ Algorithm ID で、Green 用の上限制限と Blue 用の上限制限を両方適用（順序: 先に G、次に B。または同時に元 `rgb` から計算して合成）。
 
 例 Average Independent:
 
@@ -93,10 +93,12 @@ South Sea = Screen 値として Cyan と同じ分岐。Display 名だけ South S
 
 | Replace | 内容 |
 |---------|------|
-| None | クランプのみ |
-| Luma（既定） | `spill = max(front - despilled, 0)` → 輝度を `Restore` 倍で加算 |
+| None | アルゴリズム適用のみ（表示レンジへの clamp なし） |
+| Luma（既定） | `spill_pos = max(front - limited, 0)` → 輝度を `Restore` 倍で加算。最終 RGB は clamp しない |
 | Colour | スピル量 × Replace Colour |
 | Background | スピル量 × Back。未接続は Luma |
+
+`spill_pos` の `max(..., 0)` は **復元量の符号だけ**（負のスピル差分を足さない）。入力の負値チャンネルや `>1` の highlights を落とすための display clamp ではない。
 
 ### C. 次の版
 
@@ -111,7 +113,7 @@ South Sea = Screen 値として Cyan と同じ分岐。Display 名だけ South S
 
 ```
 lim *= fine_tune;          // 0.5–1.5、1=式どおり
-out = mix(orig, clamped, amount * matte);
+out = mix(orig, limited, amount * matte);  // limited = アルゴリズム適用後。clamp(rgb,0,1) しない
 ```
 
 ## 入力
@@ -124,14 +126,33 @@ out = mix(orig, clamped, amount * matte);
 
 `MatteProvider="False"`。
 
+## linear 前提（Clamp 禁止）
+
+**想定パイプラインは scene-linear / unclamped float**（Float16 / Float32）。log 変換はしない。表示レンジへの押し込みはしない。
+
+| やる | やらない |
+|------|----------|
+| スピル上限の `min(g, lim)` / `max(r,b)` など **アルゴリズム内の比較** | `clamp(rgb, 0.0, 1.0)`、巨大な display clamp（`crok_ibk` 系） |
+| `>1` の highlights・`<0` の負値を通す | 出力を非負に強制する最終 clamp |
+| 復元量だけ `max(front - limited, 0)` | 中間バッファを 0–1 に丸める |
+
+理由: linear 素材（ACES / scene-referred）では 1 超えが正規。0–1 clamp はハイライトと負のマット周辺を壊す。`crok_ibk` との差別化でもある（IBK 減算＋重い clamp ではなく、式ベース・unclamped）。
+
+実装メモ:
+
+- 出力ビット深度は Flame の Front に合わせる想定。シェーダ側で 0–1 に正規化しない
+- View=Spill / Diff も値域を clamp しない（可視化はホスト側）
+- コメント・変数名で `clamp` を避け、`limited` / `despilled` を使う（アルゴリズムの `min` と混同しない）
+
 ## Flame / LOGIK との役割
 
 | 手段 | 向くこと |
 |------|----------|
 | Master Keyer Spill | 一体型・インタラクティブ |
 | `AFX_DeSpill` | Average 単色のみ |
+| `crok_ibk` | IBK 減算＋display 寄りの clamp が多い |
 | DespillMadness | 複数式の先例 |
-| **embr_despill** | Green/Blue/**Cyan·South Sea**、6 Algorithm、Coupled/Independent、Replace、View |
+| **embr_despill** | Green/Blue/**Cyan·South Sea**、6 Algorithm、Coupled/Independent、Replace、View、**linear / no display clamp** |
 
 ## Matchbox UI（複数アルゴリズム＋シアン）
 
@@ -157,7 +178,7 @@ GLSL は `if (screen == …)` / `if (algorithm == …)` 分岐。動的配列禁
 
 ## 色空間
 
-作業空間のまま（log 変換しない）。次の版で API にある log/scene トグル可。
+作業空間のまま（log 変換しない）。**scene-linear / unclamped 前提**（上節）。次の版で API にある log/scene トグル可。
 
 ## やらないこと（初版）
 
@@ -166,18 +187,20 @@ GLSL は `if (screen == …)` / `if (algorithm == …)` 分岐。動的配列禁
 - サウスシーの固定 sRGB ハードコード
 - South Sea を Blue 単チャンネルとして実装すること
 - Algorithm を 3 つに潰すこと
+- **`clamp(rgb, 0, 1)` や display レンジへの押し込み**（linear 素材向け）
 
 ## 差別化
 
 - シアン／サウスシーを **二チャンネル公式**で持つ（B 流用だけにしない）
 - Coupled（比率維持）と Independent（G+B 式の併用）を切り替え
 - 6 Algorithm + Replace + View
+- **linear / unclamped**（`crok_ibk` の重い clamp・`AFX_DeSpill` の単式と差別化）
 
 ## 実装優先度
 
 median と独立。シングルパスで式分岐が主。
 
-状態: **Cyan/South Sea は二チャンネルで方針確定・未実装**。
+状態: **Cyan/South Sea は二チャンネル・linear（Clamp 禁止）で方針確定・未実装**。
 
 ## 実機で決める数値（未決）
 
