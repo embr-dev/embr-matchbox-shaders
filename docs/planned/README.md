@@ -46,7 +46,7 @@ Morph と同じ向き付きカーネルで、演算だけ変える。
 
 ### embr_despill
 
-キー抜きはしない。Green / Blue / **サウスシーブルー**のスピル除去。画素単位のチャンネルクランプ（Average / Max / Soft）+ 輝度復元 + 任意 Back。詳細は [embr_despill.md](embr_despill.md)。
+キー抜きはしない。Green / Blue / **サウスシーブルー**のスピル除去。**複数アルゴリズム**（Average / Max / Double / Limit）を Popup で選択 + Replace（Luma / Colour / Background）。詳細は [embr_despill.md](embr_despill.md)。
 
 ## 作らないもの
 
