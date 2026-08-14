@@ -18,65 +18,84 @@
 
 Flame 本体: Master Keyer の Spill / Colour Suppression が定番（LOGIK でも「抑制は Master Keyer」派が多い）。Matchbox で出す価値は、**再現可能な式・Spill マット出力・BG への色置換・Batch で Keyer と分離**。
 
-## 定番アルゴリズム（画素単位・Matchbox 向き）
+## 定番アルゴリズム（種類は多い・Matchbox 向き）
 
-出典の骨格: Ben McEwan *Deconstructing Despill Algorithms*、DespillMadness / `bm_Despill`、LOGIK `AFX_DeSpill`（Average 系）。いずれも **スピル色チャンネルを他チャンネルから組み立てた上限にクランプ**する。
+デスピルは「一つの正解」ではなく、**チャンネル超過をどう上限に落とすか**のバリエーション集です。Nuke の DespillMadness / `bm_Despill`、McEwan の解説、`AFX_DeSpill` はいずれも同じ一族です。Embr の方針は **アルゴリズムを Popup で全部選べる**こと（3つに減らさない）。
+
+出典の骨格: Ben McEwan *Deconstructing Despill Algorithms*、DespillMadness / `bm_Despill`、LOGIK `AFX_DeSpill`（Average 系）。共通操作は **スピル色チャンネルを他チャンネルから組み立てた上限にクランプ**する。
 
 表記: 入力 `rgb`。スクリーンが Green のとき処理対象は `g`。Blue / サウスシーでは対象を `b` に読み替える。
 
-| 名前 | Green スクリーン時の式（概念） | 性質 |
-|------|--------------------------------|------|
-| **Average** | `g' = min(g, (r+b)/2)` | 肌を残しやすい。`AFX_DeSpill` と同系。既定候補 |
-| **Max** | `g' = min(g, max(r,b))` | より強く落とす。暗い／マゼンタ寄りになりやすい |
-| **Double Blue Avg** | `g' = min(g, (r+2*b)/3)` | 青を厚めに参照。緑落ちがマイルド |
-| **Double Red Avg** | `g' = min(g, (2*r+b)/3)` | 赤を厚め。肌・暖色向きのことが |
-| **Limit Blue** | `g' = min(g, b)` | 単純・暗く赤寄り。輝度復元とセットが前提 |
-| **Limit Red** | `g' = min(g, r)` | 同上 |
+### A. チャンネルクランプ族（本線・初版で全部載せる）
 
-Blue スクリーン（およびサウスシー既定）:
+| ID | 名前（UI） | Green スクリーン時の式（概念） | 性質 |
+|----|------------|--------------------------------|------|
+| 0 | **Average** | `g' = min(g, (r+b)/2)` | 肌向き。既定。`AFX_DeSpill` と同系 |
+| 1 | **Max** | `g' = min(g, max(r,b))` | 強い。暗くマゼンタ寄り |
+| 2 | **Double Blue** | `g' = min(g, (r+2*b)/3)` | 青を厚め。緑落ちがマイルド |
+| 3 | **Double Red** | `g' = min(g, (2*r+b)/3)` | 赤を厚め。肌・暖色 |
+| 4 | **Limit Blue** | `g' = min(g, b)` | 単純・暗い。Restore 前提 |
+| 5 | **Limit Red** | `g' = min(g, r)` | 同上 |
 
-| 名前 | 式（概念） |
-|------|------------|
-| Average | `b' = min(b, (r+g)/2)` |
-| Max | `b' = min(b, max(r,g))` |
-| Double Green Avg | `b' = min(b, (r+2*g)/3)` |
-| Double Red Avg | `b' = min(b, (2*r+g)/3)` |
-| Limit Green / Limit Red | `b' = min(b, g)` / `min(b, r)` |
+Blue / South Sea では対象を `b` に替え、Double/Limit の「他方」を Green と Red に読み替える（下表）。
 
-**Balance**（0–1）で Average と Max の閾値を混ぜる、または Double の重みを連続化するのが UI として分かりやすい。
+| ID | 名前（UI・固定英語） | Blue / South Sea 時の式 |
+|----|----------------------|-------------------------|
+| 0 | Average | `b' = min(b, (r+g)/2)` |
+| 1 | Max | `b' = min(b, max(r,g))` |
+| 2 | Double Blue → 実装では **Double Green** | `b' = min(b, (r+2*g)/3)` |
+| 3 | Double Red | `b' = min(b, (2*r+g)/3)` |
+| 4 | Limit Blue → 実装では **Limit Green** | `b' = min(b, g)` |
+| 5 | Limit Red | `b' = min(b, r)` |
+
+XML の Popup ラベルはスクリーンで切り替えられないので、**固定名 Average / Max / Double Blue / Double Red / Limit Blue / Limit Red** とし、Tooltip に「When Screen is Blue or South Sea, Double Blue means Double Green, Limit Blue means Limit Green」と書く。内部は `screen` で分岐。
+
+**Fine Tune**（DespillMadness の LimitPercentage 相当、0.5–1.5 くらい）:
 
 ```
-// Green, Balance: 0 = Average 寄り, 1 = Max 寄り（例）
-limit = mix((r+b)*0.5, max(r,b), balance);
-g2 = min(g, limit);
+limit = computed_limit * fine_tune;
+spill_ch = min(spill_ch, limit);
 ```
 
-**Amount**（0–1）: `g_out = mix(g, g2, amount)`。部分適用。
+1.0 が式どおり。上げると緩め、下げると攻め。
+
+**Amount**（0–1）: `out_ch = mix(orig_ch, clamped_ch, amount * matte)`。
+
+### B. 置換・仕上げ（アルゴリズムの後段・全 Algorithm 共通）
+
+クランプだけだと縁が暗く補色に寄る。McEwan / Autodesk フォーラムと同じ後処理を **Replaceモード**として載せる。
+
+| Replace | 内容 |
+|---------|------|
+| **None** | クランプ結果のみ |
+| **Luma**（既定） | `spill = front - despilled`（正の成分）→ 輝度化して `despilled` に `Restore` 倍で加算 |
+| **Colour** | スピル量にユーザー色（または補色）を乗せて足す |
+| **Background** | Matte/Spill 量 × Back（任意入力）。未接続時は Luma にフォールバック |
+
+これが「アルゴリズムを変える」のもう一軸。同じ Average でも Replace で見えが変わる。
+
+### C. 次の版で足せる族（初版は ID 予約または未実装でよい）
+
+| 族 | 内容 | Matchbox |
+|----|------|----------|
+| **Axis / Key Color** | ピック色方向の超過を引く。サウスシーのロットずれ向き | シングルパスで可 |
+| **Hue suppress** | キー色相の彩度を落とす（MasterGrade Hue vs Sat に近い） | HSV 手書き。可だが精度注意 |
+| **Red screen** | 対象チャンネル R。Screen に Red を足すだけ | 式は Green と同じ骨格 |
+| 空間的スピル | ブラー／Pixel Spread 連携 | Batch 側。シェーダ本体には入れない |
 
 ### サウスシー向け
 
-1. **Screen = South Sea** → 内部は Blue と同じ式。Balance の既定を **シアン寄り**（例: Double Green Avg 側、または Balance を Average より少し Max/Green 参照に）にするだけ。Tooltip に「South Sea Blue fabric; tweak Balance if the plate is more cyan」。
-2. **Screen = Custom** → ピックした `key_color` に対し、スピル量をキー色方向の超過分として取る（下の「軸デスピル」）。ロット差・照明で色がずれたときに使う。
-
-軸デスピル（初版に入れるか未決。入れるなら Mode の一つ）:
-
-```
-// 概念。クラシック GLSL で可
-spill_axis = normalize(key_color - luminance(key)*vec3(1)); // またはキーから灰を引いた方向
-excess = max(0, dot(rgb - gray, spill_axis));
-rgb2 = rgb - excess * spill_axis * amount;
-```
-
-厳密な正規化は log/lin で変わる。初版は **チャンネルクランプ（Green/Blue/SouthSea）を本線**、Custom 軸は次の版でもよい。
+1. **Screen = South Sea** → 内部は Blue と同じ式群。Algorithm 既定は **Double Blue（= Double Green）** または Average。Tooltip でシアン寄りを案内。
+2. **Screen = Custom**（次の版）→ Key Color + Axis。
 
 ## スピル差分と輝度復元（推奨ワークフロー）
 
 チャンネルを落とすだけだと縁が暗く・補色（緑→マゼンタ、青→黄）に寄る。McEwan / Autodesk フォーラム（Hugo 系セットアップ）と同じ流れを 1 ノードに載せる。
 
 1. `despilled` = 上のクランプ結果  
-2. `spill = abs(front - despilled)`（または `front - despilled` を clamp）  
-3. **Luma restore**: `spill_luma = luminance(spill)`（または desaturate）を `despilled` に加算  
-4. 任意で `spill_luma` に Grade（gain）や、**Back** を乗算して縁色を BG に寄せる（`crok_despill` / additive 系の考え方）
+2. `spill = max(front - despilled, 0)`（チャンネルごと、または対象チャンネルのみ）  
+3. **Replace = Luma**: `despilled + Restore * vec3(luminance(spill))`  
+4. **Replace = Background**: 上記の係数に Back を乗算（`crok_despill` / additive 系の考え方）
 
 Matchbox 入力案:
 
@@ -84,7 +103,7 @@ Matchbox 入力案:
 |--------|------|
 | Front | 必須。キー前プレート |
 | Matte | 任意。Amount のマスク（白=フル despill）。未接続 White |
-| Back | 任意。縁のスピル色を BG に置換するとき。未接続は輝度復元のみ |
+| Back | 任意。Replace=Background のとき。未接続は Luma |
 
 `crok_despill` は Front/Back/Matte/既に Despilled の合成ハブ。Embr は **自分で despill する**側。役割が違う。
 
@@ -96,34 +115,35 @@ Matchbox 入力案:
 | MasterGrade Hue vs Sat | 抑えすぎの補正 |
 | `AFX_DeSpill` | 単純 Average 系。肌向き。MIT ではない想定で参考のみ |
 | `crok_despill` | 既に despilled した素材と BG の LogicOps 組み立て |
-| **embr_despill** | 式を固定・再現、Spill マット出力、Green/Blue/SouthSea プリセット、Batch で Keyer と分離 |
+| DespillMadness / bm_Despill | Nuke で「アルゴリズム集合」の先例。Embr の UI モデル |
+| **embr_despill** | 複数式を Popup で選択、Restore/Replace、Spill View、Green/Blue/SouthSea、Batch で Keyer と分離 |
 
-Embr は Master Keyer の置き換えではなく、**式が見える補完ツール**。
+Embr は Master Keyer の置き換えではなく、**式が見える・切り替えられる補完ツール**。
 
-## Matchbox 実装方針（採用しやすい形）
+## Matchbox 実装方針（複数アルゴリズム前提）
 
-- **シングルパス**。近傍サンプリングなし → Median / Morph より軽い。`adsk_degrade` は不要でもよい（付けるなら Amount を落とす程度）
+- **シングルパス**。近傍サンプリングなし → Median / Morph より軽い
 - クラシック GLSL。`#version` なし
-- スクリーン: Popup `Green` / `Blue` / `South Sea`（内部 Blue + Balance 既定差）/ 任意で後から `Custom`
-- Algorithm: Popup `Average` / `Max` / `Double A` / `Double B` / `Limit A` / `Limit B`（ラベルはスクリーンに応じて「Double Blue」等に動的変更は XML では難しいので、**固定英語ラベル + Tooltip**、または Algorithm を Average/Max/Weighted の3つに減らして Weight スライダ1本）
-- Amount, Balance, Restore（輝度復元量）, Mix
-- 出力: RGB。オプションで Spill をアルファに載せるか、**第2出力が無い Matchbox では View モード**（Result / Spill Matte / Diff）を Popup で切替
+- Screen: `Green` / `Blue` / `South Sea`（内部 Blue）。次の版で `Red` / `Custom`
+- **Algorithm: 6 択を初版から全部**（Average / Max / Double Blue / Double Red / Limit Blue / Limit Red）。3 択に潰さない
+- Fine Tune, Amount, Restore, Replace（None / Luma / Colour / Background）, Mix, View（Result / Spill / Diff）
+- Colour Replace 用に `vec3 replace_color`（Colour ポット）
 
-UI を減らす初版案:
+| Control | Type | Default | 内容 |
+|---------|------|---------|------|
+| Screen | Popup | Green | Green / Blue / South Sea |
+| Algorithm | Popup | Average | 上表 0–5 |
+| Amount | float | 1 | 0–1 |
+| Fine Tune | float | 1 | 0.5–1.5、Inc 0.01 |
+| Replace | Popup | Luma | None / Luma / Colour / Background |
+| Restore | float | 0.5 | Replace が None 以外のとき効く |
+| Replace Colour | vec3 Colour | 補色寄りの灰 | Replace=Colour |
+| Mix | float | 1 | 0–1 |
+| View | Popup | Result | Result / Spill / Diff |
 
-| Control | 内容 |
-|---------|------|
-| Screen | Green / Blue / South Sea |
-| Algorithm | Average / Max / Soft（= Double 他チャンネル平均） |
-| Amount | 0–1 |
-| Balance | 0–1（閾値の混ぜ、または Soft の重み） |
-| Restore | 0–1（スピル輝度の戻し） |
-| Mix | 0–1 |
-| View | Result / Spill / Diff |
+入力: Front, Matte, Back 任意。`MatteProvider="False"`。
 
-入力: Front, Matte(Strength 相当), Back 任意。
-
-`MatteProvider="False"`。アルファは触らない（親からパススルー）。
+GLSL は `if (algorithm == 0) … else if …` で分岐（配列に式を載せるな）。`main()` 早期 return 禁止。
 
 ## 色空間
 
@@ -137,27 +157,30 @@ Morph と同じく **作業空間のまま**（log 変換しない）。log プ�
 - 空間ブラー付きスピル（Pixel Spread 連携は Batch 側）
 - LOGIK / Nuke gizmo の移植・クレジットなし再配布
 - サウスシーの固定 sRGB 数値をハードコード（生地・ロット依存）
+- Algorithm を 3 つに減らして Weighted スライダ1本にまとめること（ユーザー要望は複数式の明示選択）
 
 ## 既存ツールとの差別化メモ
 
-- `AFX_DeSpill`: Average のみ、G/B/R。Embr は Algorithm + Restore + South Sea プリセット + View
-- Master Keyer: 高機能だが式がブラックボックス。Embr はドキュメント化された式
-- サウスシー: 国内スタジオで Grean と並ぶ布。Blue 一択 UI だと Balance を毎回いじる必要があるのでプリセット名を出す価値がある
+- `AFX_DeSpill`: Average のみ。Embr は 6 Algorithm + Fine Tune + Replace + View + South Sea
+- DespillMadness: 同系統の「集合」UI。Embr は MIT・Flame Matchbox・サウスシープリセット
+- Master Keyer: 高機能だが式がブラックボックス
 
 ## 実装優先度（リポジトリ全体）
 
-画像処理シリーズ（median / tophat）とは別系統。キーイング需要が先なら **median と並行して仕様を固められる**（依存なし・シングルパスで実装も短い）。
+画像処理シリーズ（median / tophat）とは別系統。キーイング需要が先なら **median と並行して仕様を固められる**（依存なし・シングルパスで実装も短い。式が増えても分岐だけ）。
 
-状態: **検討済み・仕様は初版 UI まで仮決め・未実装**。実装前に Screen プリセットの実プレート（Green / Blue / サウスシー）で Average vs Max vs Soft を見比べ、South Sea の Balance 既定だけ数値確定する。
+状態: **複数アルゴリズム採用で方針確定・未実装**。実機では 6 式 × Green/Blue/SouthSea を見比べ、既定（Green→Average、South Sea→Double Blue）だけ確認。
 
 ## 実機で決める数値（未決）
 
 | 項目 | 仮 |
 |------|-----|
-| South Sea の Algorithm 既定 | Soft（Double Green 側） |
-| South Sea の Balance 既定 | 0.35（Green の Average=0 より強め） |
+| Green の Algorithm 既定 | Average |
+| South Sea の Algorithm 既定 | Double Blue（内部 Double Green） |
+| Fine Tune 既定 | 1.0 |
 | Restore 既定 | 0.5 |
 | Amount 既定 | 1.0 |
+| Replace 既定 | Luma |
 
 ## 参考リンク（出典）
 
