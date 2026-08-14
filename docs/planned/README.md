@@ -7,7 +7,7 @@
 | 順 | シェーダ | 状態 | 詳細 |
 |----|----------|------|------|
 | 1 | **embr_median** | 仕様済み・未実装 | [embr_median.md](embr_median.md) |
-| — | **embr_despill** | 検討済み・未実装 | [embr_despill.md](embr_despill.md)。Green/Blue/**Cyan·South Sea**。median と独立 |
+| — | **embr_despill** | 検討済み・未実装 | [embr_despill.md](embr_despill.md)。Green/Blue/**Cyan·South Sea**。**linear / display Clamp 禁止**。median と独立 |
 | 2 | embr_tophat | アイデア | 下の概要。Morph のパス再利用 |
 | 3 | embr_distance | アイデア | Jump Flood。パスが多い |
 
