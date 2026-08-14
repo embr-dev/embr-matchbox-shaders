@@ -6,7 +6,11 @@ Part of **[Embr](https://github.com/embr-dev/Embr)** — tools and community res
 
 ## Status
 
-Early setup. Shaders will live under `shaders/`. Contribution guidelines and packaging details will follow.
+Early setup. Shaders live under `shaders/`.
+
+## Creating shaders
+
+Cursor / agent instructions and the Matchbox API reference are in [`docs/api/`](docs/api/README.md). Conventions: `embr_` prefix, classic GLSL, sidecar XML, MIT.
 
 ## Related repositories
 

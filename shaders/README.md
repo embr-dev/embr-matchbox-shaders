@@ -1,5 +1,14 @@
 # Shaders
 
-Place Matchbox shader packages in this directory.
+Each Matchbox lives in its own folder:
 
-Naming and packaging conventions will be documented as the first tools land.
+```
+shaders/embr_example/
+  embr_example.glsl
+  embr_example.xml
+  README.md
+```
+
+Multi-pass: `embr_example.1.glsl`, `embr_example.2.glsl`, … and one `embr_example.xml`.
+
+Prefix every shader with `embr_`. Follow [docs/api](../docs/api/README.md) for GLSL, XML, and packaging.

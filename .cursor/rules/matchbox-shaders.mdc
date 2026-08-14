@@ -1,0 +1,18 @@
+---
+description: Matchbox/Lightbox GLSL and sidecar XML conventions for Flame shaders
+globs: "**/*.{glsl,xml}"
+alwaysApply: false
+---
+
+# Matchbox / Lightbox ファイル
+
+実装前に `docs/api/README.md` を読む。スキル `matchbox-shaders` に従う。
+
+## 既定
+
+- クラシック GLSL: `texture2D` と `gl_FragColor`。`#version` を書かない
+- `main()` から早期 `return` しない。出力は末尾で一度
+- `adsk_*` は宣言のみ（Flame が値を入れる）。UI には出ない
+- XML `Name` は GLSL uniform 名と一致。入力は `InputType` で Front/Back/Matte/Selective
+- マルチパス: `Name.N.glsl` + 一つの `Name.xml`。後続パスは `adsk_results_passN`
+- このリポジトリのシェーダは `embr_` プレフィックス、置き場は `shaders/<name>/`
