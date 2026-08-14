@@ -7,6 +7,7 @@
 | 順 | シェーダ | 状態 | 詳細 |
 |----|----------|------|------|
 | 1 | **embr_median** | 仕様済み・未実装 | [embr_median.md](embr_median.md) |
+| — | **embr_despill** | 検討済み・未実装 | [embr_despill.md](embr_despill.md)。キー系。median と独立 |
 | 2 | embr_tophat | アイデア | 下の概要。Morph のパス再利用 |
 | 3 | embr_distance | アイデア | Jump Flood。パスが多い |
 
@@ -42,6 +43,10 @@ Morph と同じ向き付きカーネルで、演算だけ変える。
 ### embr_distance
 
 マットから近似距離場。Jump Flood（8–12 パス固定）を想定。測地 Dilate や骨格化はパス数が解像度依存なので対象外。Median / Top-hat の後。
+
+### embr_despill
+
+キー抜きはしない。Green / Blue / **サウスシーブルー**のスピル除去。画素単位のチャンネルクランプ（Average / Max / Soft）+ 輝度復元 + 任意 Back。詳細は [embr_despill.md](embr_despill.md)。
 
 ## 作らないもの
 
