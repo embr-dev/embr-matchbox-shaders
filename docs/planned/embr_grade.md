@@ -139,7 +139,7 @@ Tooltip で「Encoding は変換、Model はどの式のプライマリか」と
 
 | Control | Type | Default | 内容 |
 |---------|------|---------|------|
-| Working Model | Popup | Scene-Linear | Video / Log / Scene-Linear |
+| Working Model | Popup | **Video** | Video / Log / Scene-Linear。既定は Video（現場の初期バランス用） |
 | Grade Encoding | Popup | Pass-Through | Pass-Through / Temp Cineon Log |
 | Bypass CDL | bool | True | Phase 1 は CDL ページを独立。既定オフ運用でも可 → **Bypass CDL=True**（触るまで CDL 無効） |
 | Saturation | float | 1 | 0–4。最終寄り |
@@ -278,10 +278,11 @@ T-CAM・相手色空間マッチングは対象外。
 - 色管理は Flame プロジェクト CM が上流。本シェーダは「打つ場所」を明確にする
 - despill の unclamped 方針と整合
 
-状態: **Phase 分割と Encoding 方針まで確定寄り・UI 詳細は Phase 1 着手前にもう一段詰める**。
+状態: **Phase 分割と Encoding 方針まで確定寄り・UI 詳細は Phase 1 着手前にもう一段詰める**。  
+Working Model 既定: **Video**（2026-08-15 確定）。
 
 ## 次の具体ステップ（実装前）
 
 1. Phase 1 の Video LGG / Log SMH / Linear Exposure の数式を別節で確定（疑似コード）
-2. XML の ColourWheel* 配置モック（Row/Col）
+2. XML の ColourWheel* 配置モック（Row/Col）。Popup 順は Video=0 / Log=1 / Scene-Linear=2（Default=0）
 3. 実機で MasterGrade と並走比較するテストプレート（LogC / scene-linear EXR / Rec.709）
