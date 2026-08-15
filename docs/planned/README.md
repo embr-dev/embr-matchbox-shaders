@@ -49,6 +49,10 @@ Morph と同じ向き付きカーネルで、演算だけ変える。
 
 キー抜きはしない。Green / Blue / **Cyan（サウスシー）**のスピル除去。シアンは G+B 同時（Coupled / Independent）。Algorithm 6 択 + Replace。詳細は [embr_despill.md](embr_despill.md)。
 
+### embr_holefill
+
+マットの内部穴・ゴミ。コアを 2 値化 → Close/Open → `max`/`min` で元のソフトエッジを残す。詳細は [embr_holefill.md](embr_holefill.md)。非有界フラッドフィルはしない（Size 付き Morph）。任意サイズの閉穴は distance 連携の v2。
+
 ## 作らないもの
 
-連結成分、面積 Opening、ヒストグラム均等化、FFT、フラッドフィル、本格 Inpaint、Poisson、任意半径の厳密 2D median ソート。
+連結成分、面積 Opening、ヒストグラム均等化、FFT、**非有界**フラッドフィル、本格 Inpaint、Poisson、任意半径の厳密 2D median ソート。
