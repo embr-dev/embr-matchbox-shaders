@@ -12,7 +12,7 @@
 2. コアに Close / Open  
 3. `max` / `min` で元のフォールオフを残す  
 
-マットの Unpremultiply は不要（対象はカバレッジ）。色の Edge Extend は別シェーダ。
+マットの Unpremultiply は不要（対象はカバレッジ）。色の Edge Extend は **embr_pixelspread**（[embr_pixelspread.md](embr_pixelspread.md)）。
 
 ## 処理（確定）
 

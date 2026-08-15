@@ -11,9 +11,10 @@
 | 1 | **embr_median** | 仕様済み・未実装 | [embr_median.md](embr_median.md) |
 | — | **embr_despill** | 検討済み・未実装 | [embr_despill.md](embr_despill.md)。Green/Blue/**Cyan·South Sea**。**linear / display Clamp 禁止** |
 | — | **embr_holefill** | 仕様済み・未実装 | [embr_holefill.md](embr_holefill.md)。ソフトエッジ保持。**UI 確定** |
-| — | **embr_grade** | 調査＋段階仕様・未実装 | [embr_grade.md](embr_grade.md)。MasterGrade 代替。**Phase 1=Encoding+Primaries+CDL** |
+| — | **embr_grade** | 調査＋段階仕様・未実装 | [embr_grade.md](embr_grade.md)。MasterGrade 代替。**Phase 1=Encoding+Primaries+CDL**。Model 既定 **Video** |
+| — | **embr_pixelspread** | 方向性確定・未実装 | [embr_pixelspread.md](embr_pixelspread.md)。Dilate/Blur/Stretch 統合。solidify 等は別検討として同メモに併記 |
 | 2 | embr_tophat | アイデア | 下の概要。Morph のパス再利用 |
-| 3 | embr_distance | アイデア | Jump Flood。holefill v2 と接続可 |
+| 3 | embr_distance | アイデア | Jump Flood。holefill v2 / **solidify** と接続可 |
 
 `.mx` は今は作らない。ソース（`.glsl` + `.xml` + PNG）だけ。Mac の `shader_builder -p` は 2025 Metal で `CreateRenderGraph` になった観測あり。検証は後日 Linux / 手動コンパイル。
 
@@ -47,7 +48,7 @@ Morph と同じ向き付きカーネルで、演算だけ変える。
 
 ### embr_distance
 
-マットから近似距離場。Jump Flood（8–12 パス固定）。測地 Dilate や骨格化はパス数が解像度依存なので対象外。
+マットから近似距離場。Jump Flood（8–12 パス固定）。測地 Dilate や骨格化はパス数が解像度依存なので対象外。**embr_solidify**（色の最近傍埋め）や holefill v2 の基盤候補。
 
 ### embr_despill
 
@@ -59,8 +60,12 @@ Morph と同じ向き付きカーネルで、演算だけ変える。
 
 ### embr_grade
 
-MasterGrade が弱い **Log / Linear の作業空間**を正面から扱うグレーディング。Resolve（LGG / Log SMH）・Baselight（zones / stops）・ASC CDL / ACES を調査済み。**Grade Encoding**（Pass / Temp Cineon Log）で Linear にも Log 操作感。段階実装（Phase 1 Foundation → Tone/Curves → Zones）。[embr_grade.md](embr_grade.md)
+MasterGrade が弱い **Log / Linear の作業空間**を正面から扱うグレーディング。Resolve / Baselight / ASC CDL を調査済み。**Grade Encoding** + Working Model（既定 **Video**）。段階実装。[embr_grade.md](embr_grade.md)
+
+### embr_pixelspread
+
+縁の **RGB** 押し出し（Edge Extend 族）。**Dilate / Blur-Unpremult / Stretch·Smear** を 1 ノードに統合。JFA Solidify・本格 Edge Push・Matte Edge 専用は **別シェーダ候補として同メモに併記**。[embr_pixelspread.md](embr_pixelspread.md)
 
 ## 作らないもの
 
-連結成分、面積 Opening、ヒストグラム均等化、FFT、**非有界**フラッドフィル、本格 Inpaint、Poisson、任意半径の厳密 2D median ソート、MasterGrade 専用 UI の複製、フル OCIO / T-CAM 複製。
+連結成分、面積 Opening、ヒストグラム均等化、FFT、**非有界**フラッドフィル、本格 Inpaint、Poisson、Push–Pull ピラミッド、任意半径の厳密 2D median ソート、MasterGrade 専用 UI の複製、フル OCIO / T-CAM 複製。
