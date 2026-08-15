@@ -21,22 +21,15 @@ LOGIK 定番の焼き直しではなく、**コンポで効く**／**Batch だ�
 
 ## A. ユーザー要望に直結 — 髪の流れ Soften
 
-### embr_flow_soften（仮）★要望あり
+### embr_flow_soften ★仕様化済み
 
-**通称で言っていた「Structure-aware soften」はこれ。**  
-構造テンソル／局所方向場を推定し、**流れに沿ってだけ**ぼかし、**流れに逆らう細い毛**を落とす。
+**通称「Structure-aware soften」はこれ。**  
+詳細仕様: **[embr_flow_soften.md](embr_flow_soften.md)**（構造テンソル → 接線 1D ブラー → Weak Cross）。
 
 | 項目 | 内容 |
 |------|------|
 | やりたいこと | 主方向（髪の流れ）に沿うブラー。直交方向の細かい毛・飛び毛を抑える |
-| やらないこと | 全面 beauty 肌平滑（`crok_beauty` 系）。キー生成 |
-| なぜシェーダか | 方向推定＋異方性ブラーは Batch の Blur 積みでは再現しづらい |
-| 入力案 | Front、Selective（髪マット）、任意の Guide（輝度／別パス） |
-| 技術メモ | 構造テンソル（または勾配の平滑）→ 固有ベクトルで接線方向 → 接線方向 1D ブラー強め、法線方向は弱め or 高周波抑制。LIC／coherence-enhancing の簡易版 |
-| リスク | 背景との境界で方向が荒れる → Selective 必須。大半径はパス数増 |
-| 状態 | **提案（優先検討候補）** |
-
-関連別名: Structure-aware soften、Anisotropic soften、Hair flow blur。
+| 状態 | **仕様確定・未実装**（提案リストから昇格） |
 
 ---
 
@@ -44,7 +37,7 @@ LOGIK 定番の焼き直しではなく、**コンポで効く**／**Batch だ�
 
 | ID | 仮名 | 概要 | シェーダにする理由 | 状態 |
 |----|------|------|-------------------|------|
-| B1 | embr_flow_soften | 上記 A | 異方性＋方向場 | 提案★ |
+| B1 | embr_flow_soften | 髪の流れ Soften | 異方性＋方向場 | **仕様** → [embr_flow_soften.md](embr_flow_soften.md) |
 | B2 | embr_guided_edge | Guided / bilateral で縁だけノイズ落とし | エッジ保持平滑は手組みが長い | 提案 |
 | B3 | embr_joint_upsample | 低解像マット／AO を Front に沿って持ち上げ | joint bilateral upsample | 提案 |
 | B4 | embr_domain_blur | Domain-transform 系の大ソフト近似 | 巨大 Blur スタックより安い可能性 | 提案（要検証） |
@@ -126,7 +119,7 @@ Pixel spread（薄い縁伸ばし）はボツ。色の大穴は **C1 solidify** 
 
 ## 推奨する検討順（案）
 
-1. **embr_flow_soften**（髪の流れ・要望あり）  
+1. **embr_flow_soften**（仕様済み・未実装）→ [embr_flow_soften.md](embr_flow_soften.md)  
 2. **embr_edge_diag** / **embr_edge_rebuild**（毎日の縁）  
 3. **embr_solidify** + distance（pixelspread の代替）  
 4. **embr_contact** / **embr_plate_match**  
