@@ -4,6 +4,8 @@
 
 最終整理: 2026-08-15。
 
+**提案の棚卸し**（未採択のアイディア一覧）: [proposals.md](proposals.md)。髪の流れ Soften（Structure-aware）含む。
+
 ## 優先順位
 
 | 順 | シェーダ | 状態 | 詳細 |
@@ -17,6 +19,7 @@
 | — | **embr_pixelspread** | **ボツ**（2026-08-15）。クオリティ不足。シェーダは削除済み | 知見は [embr_pixelspread.md](embr_pixelspread.md) の中断ログ |
 | 2 | embr_tophat | アイデア | 下の概要。Morph のパス再利用 |
 | 3 | embr_distance | アイデア | Jump Flood。holefill v2 / **solidify** と接続可 |
+| — | **提案リスト** | 検討用 | [proposals.md](proposals.md)。**embr_flow_soften**（髪の流れに沿うブラー／逆毛抑制）ほか |
 
 ソース（`.glsl` + `.xml` + PNG）を正本にする。`.mx` を出すときはマルチパスを `Name.*.glsl` で全パス渡す（`.1.glsl` だけだと `CreateRenderGraph`）。手順は [packaging.md](../api/packaging.md)。
 
