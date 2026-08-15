@@ -4,7 +4,7 @@
 
 関連: [README.md](README.md)、[embr_morphology](../../shaders/embr_morphology/README.md)、将来の distance（概要）。キー生成はしない。
 
-状態: **処理方針＋ UI 仕様まで確定・未実装**。
+状態: **処理方針＋ UI 仕様まで確定・未実装**（2026-08-15 時点・最新）。
 
 ## 意図
 
