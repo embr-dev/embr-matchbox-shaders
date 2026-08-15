@@ -11,4 +11,4 @@ shaders/embr_example/
 
 Multi-pass: `embr_example.1.glsl`, `embr_example.2.glsl`, … and one `embr_example.xml`.
 
-Prefix every shader with `embr_`. Follow [docs/api](../docs/api/README.md) for GLSL, XML, and packaging.
+Prefix every shader with `embr_`. Follow [docs/api](../docs/api/README.md) for GLSL, XML, and packaging. Upcoming shaders: [docs/planned](../docs/planned/README.md).

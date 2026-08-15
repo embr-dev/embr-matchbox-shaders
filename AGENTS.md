@@ -8,6 +8,7 @@ Matchbox / Lightbox / GLSL / sidecar XML を扱うときは:
 
 1. スキル **matchbox-shaders** を適用する
 2. 先に [docs/api/README.md](docs/api/README.md) を読む（Cursor 用 API docs）
+3. 未実装の予定は [docs/planned/README.md](docs/planned/README.md)
 
 推測で `adsk_*` や XML 属性を足さない。出典は `docs/api/SOURCES.md`。
 

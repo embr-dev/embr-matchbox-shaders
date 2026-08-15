@@ -15,6 +15,7 @@ Autodesk Flame 向け **Matchbox**（および関連する Lightbox）をこの�
 | ビルド・プリセット・配置・LOGIK 公開 | [packaging.md](packaging.md) |
 | 動かない / 2024.1 以降 / Mac | [gotchas.md](gotchas.md) |
 | 出典 | [SOURCES.md](SOURCES.md) |
+| 未実装の予定シェーダ | [docs/planned/README.md](../planned/README.md) |
 
 ## このリポジトリの既定
 

@@ -6,7 +6,7 @@ Part of **[Embr](https://github.com/embr-dev/Embr)** — tools and community res
 
 ## Status
 
-Early setup. Shaders live under `shaders/`.
+Early setup. Shaders live under `shaders/`. Planned work: [`docs/planned/`](docs/planned/README.md).
 
 ## Creating shaders
 
