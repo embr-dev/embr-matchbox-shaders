@@ -8,8 +8,9 @@
 |----|----------|------|------|
 | 1 | **embr_median** | 仕様済み・未実装 | [embr_median.md](embr_median.md) |
 | — | **embr_despill** | 検討済み・未実装 | [embr_despill.md](embr_despill.md)。Green/Blue/**Cyan·South Sea**。**linear / display Clamp 禁止**。median と独立 |
+| — | **embr_holefill** | 検討済み・未実装 | [embr_holefill.md](embr_holefill.md)。マット穴埋め。ソフトエッジ保持。median と独立 |
 | 2 | embr_tophat | アイデア | 下の概要。Morph のパス再利用 |
-| 3 | embr_distance | アイデア | Jump Flood。パスが多い |
+| 3 | embr_distance | アイデア | Jump Flood。パスが多い。holefill v2 の位相的穴埋めと接続可 |
 
 `.mx` は今は作らない。ソース（`.glsl` + `.xml` + PNG）だけ。Mac の `shader_builder -p` は 2025 Metal で `CreateRenderGraph` になった観測あり。検証は後日 Linux / 手動コンパイル。
 
