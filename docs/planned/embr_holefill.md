@@ -2,137 +2,195 @@
 
 表示名案: **Embr Hole Fill**。キーマットの **内部穴・ゴミ**を直し、**ソフトエッジは残す**。
 
-関連: [README.md](README.md)、[embr_morphology](../../shaders/embr_morphology/README.md)、将来の [embr_distance](README.md)（概要）。キー生成はしない。
+関連: [README.md](README.md)、[embr_morphology](../../shaders/embr_morphology/README.md)、将来の distance（概要）。キー生成はしない。
 
-## 意図（ユーザー案の読み）
+状態: **処理方針＋ UI 仕様まで確定・未実装**。
 
-現場でやりたいこと:
+## 意図
 
-1. ソフトマット `m` から **コア（2値）**を切る
-2. コアに対して穴埋め（足りなければモルフォロジー）
-3. **輪郭帯だけ元の `m` に戻す**（シルエットのソフトを壊さない）
+1. ソフトマット `m` から **コア（2値）**を切る  
+2. コアに Close / Open  
+3. `max` / `min` で元のフォールオフを残す  
 
-「Unpremultiply → 2値 →（Morph）→ 境界に元マスク」はこの意図の言い方として正しい。  
-Matchbox 実装では次のように整理する。
+マットの Unpremultiply は不要（対象はカバレッジ）。色の Edge Extend は別シェーダ。
 
-## Unpremultiply について
-
-- 穴埋めの対象は **カバレッジ（Matte / α）**。マット自体を unpremultiply する必要はない
-- Front が RGB×α の premul なら、色の修復は別（Edge Extend / despill）。本シェーダの主出力は **直したマット**
-- UI に Unpremultiply を出すなら「Front 色を α で割ってプレビュー」程度のオプションに留め、コア処理とは分離する
-
-## 推奨パイプライン（初版）
-
-ユーザー案より合成を単純化した版。多くの穴埋めでこれで足りる。
+## 処理（確定）
 
 ```
-m      = matte.r;                    // または Front.a。Channel で選択
-core   = step(threshold, m);         // 2値コア
-filled = morph_close(core, radius);  // 穴・細い切れを埋める（半径 ≥ 穴の半分程度）
-out    = max(m, filled);             // ソフトエッジ復元の最短形
-out    = mix(m, out, amount);
+m       = source_coverage(...);     // Source による
+if (invert) m = 1.0 - m;
+core    = step(threshold, m);
+filled  = morph_close(core, fill_size);   // Mode に応じて
+opened  = morph_open(core, speck_size);   // Mode に応じて
+repaired =
+  Fill Holes     → max(m, filled)
+  Remove Specks  → min(m, opened)
+  Both           → min(max(m, filled), opened_from_that)  // Close→Open 順
+out_cov = mix(m, repaired, mix_amount);
+// Output に応じて RGB / A へ載せる
 ```
 
-### なぜ `max(m, filled)` で境界が残るか
+Both の Open は Close 後の結果に対して行う（穴を埋めてから白ゴミを落とす）。
 
-| 領域 | `m` | Close 後の `filled` | `max` の結果 |
-|------|-----|---------------------|--------------|
-| 外部 | ≈0 | 0 | 0 |
-| ソフトエッジ（`0 < m < threshold`） | ソフト | 通常 0 | **元のソフト** |
-| ソリッド | 高 | 1 | 高 / 1 |
-| 内部の穴（`m≈0` だが囲まれている） | ≈0 | **1**（Close が届く範囲） | **埋まる** |
+## UI 設計方針
 
-Close（Dilate→Erode）は 2値シルエットの外周をだいたい元に戻すので、閾値より外のフォールオフは触らない。  
-「境界に元をペースト」と同等で、エッジマスク生成が不要。
+- **主操作は 3 つ**: Mode / Threshold / Size。ここだけで 8 割のショットが直る  
+- Morph と同じく **Mix のみ**（Amount と二重にしない）  
+- **Core Replace は Mode に置かない**（View で Core / Processed を見る）  
+- Unpremultiply は出さない  
+- Kernel は Square / Circle のみ（Line・Angle なし）  
+- Both のときだけ Speck Size を出す（UICondition）
 
-### ユーザー案（明示的エッジ復元）が向くとき
+## 入力
 
-Close 以外でコア外形がずれる、または 2値結果で上書きしたいとき:
+| Socket | InputType | NoInput | 役割 |
+|--------|-----------|---------|------|
+| Front | Front | Error | 必須。色のパススルー、またはマット自体 |
+| Matte | Matte | Black | Source=Matte のとき使う。未接続かつ Source=Matte なら GLSL で Front Alpha にフォールバック |
+| Strength | Matte | White | Size / Speck Size の画素ごと乗数（R）。未接続=1 |
+
+`LimitInputsToTexture="True"`。
+
+### MatteProvider
+
+**`True`（確定）**。直したカバレッジを `gl_FragColor.a` に書き、子へ渡す。マット修復ノードとしての本命。
+
+## Controls（確定）
+
+Page 名: **Hole Fill**。列は Morph に合わせて 2 列。
+
+### Col 0 — Source
+
+| Row | Control | Type | Default | 内容 |
+|-----|---------|------|---------|------|
+| 0 | **Source** | Popup | Front Alpha | カバレッジの取り出し元 |
+| 1 | **Invert** | bool | False | 処理前に `1 - m` |
+| 2 | **Mode** | Popup | Fill Holes | 修復の種類 |
+| 3 | **View** | Popup | Result | 診断 |
+| 4 | **Output** | Popup | Replace Alpha | 出力の載せ方 |
+
+**Source**
+
+| Value | Title | 式 |
+|-------|-------|-----|
+| 0 | Front Alpha | `front.a` |
+| 1 | Front Red | `front.r`（マットを RGB で流すパイプ） |
+| 2 | Matte | `matte.r`。未接続時は `front.a` |
+
+**Mode**
+
+| Value | Title | 処理 |
+|-------|-------|------|
+| 0 | Fill Holes | Close → `max(m, filled)` |
+| 1 | Remove Specks | Open → `min(m, opened)` |
+| 2 | Both | Close → `max` のあと Open → `min` |
+
+**View**
+
+| Value | Title | 内容 |
+|-------|-------|------|
+| 0 | Result | 最終出力 |
+| 1 | Source | 入力カバレッジ `m`（Invert 後） |
+| 2 | Core | 2 値コア |
+| 3 | Processed | Morph 後（合成前） |
+| 4 | Diff | `abs(result - m)`（変化量の可視化。値域は clamp しない） |
+
+**Output**
+
+| Value | Title | 内容 |
+|-------|-------|------|
+| 0 | Replace Alpha | `rgb = front.rgb`、`a = out_cov`。キー後の色＋マット直し（**既定**） |
+| 1 | Matte RGB | `rgb = vec3(out_cov)`、`a = out_cov`。マット専用パイプ |
+
+View が Result 以外のときは診断用にグレー表示（`vec3(v)` + `a = v`）。Output は Result 時だけ意味を持つ。
+
+### Col 1 — Repair
+
+| Row | Control | Type | Default | Min–Max / Inc | 内容 |
+|-----|---------|------|---------|---------------|------|
+| 0 | **Threshold** | float | 0.5 | 0–1 / 0.01 | コア切り。Tooltip: これ以上をソリッドとみなす |
+| 1 | **Size** | int | 2 | 0–64 / 1 | Fill の Close 半径（px）。Remove Specks 単独時は Open 半径 |
+| 2 | **Speck Size** | int | 1 | 0–64 / 1 | Both の Open 半径。**Mode=Both のときだけ表示**（`UIConditionSource=mode` `UIConditionValue=2` `Hide`） |
+| 3 | **Kernel** | Popup | Square | | Square / Circle |
+| 4 | **Mix** | float | 1 | 0–1 / 0.01 | 元カバレッジとのブレンド |
+
+**Size の意味（Mode 依存）**
+
+| Mode | Size | Speck Size |
+|------|------|------------|
+| Fill Holes | Close 半径 | 非表示 |
+| Remove Specks | Open 半径 | 非表示 |
+| Both | Close 半径 | Open 半径 |
+
+Tooltip（Size）: 埋められる穴の半径の目安。直径 roughly `2 * Size` まで。0 は threshold のみ（Morph なし）。
+
+**Kernel**
+
+| Value | Title | 備考 |
+|-------|-------|------|
+| 0 | Square | 既定。分離 2 パスで安い |
+| 1 | Circle | 八角近似（Morph と同型）。丸い穴向き |
+
+Angle / Line は出さない。
+
+**Strength**: ソケットのみ（UI スライダなし）。`round(Size * clamp(strength.r, 0, 1))`。Speck Size にも同様。
+
+**Adaptive Degradation**: `SupportsAdaptiveDegradation="True"` + `adsk_degrade` で Size / Speck Size 上限 8（Morph に合わせる）。
+
+## レイアウト（XML イメージ）
 
 ```
-edge = smoothstep(0.0, edge_w, m) * (1.0 - smoothstep(1.0 - edge_w, 1.0, m));
-// または |m - blur(m)| や dilate(core)-erode(core)
-out  = mix(filled, m, edge);
+Page "Hole Fill"
+  Col 0 "Source":  Source, Invert, Mode, View, Output
+  Col 1 "Repair":  Threshold, Size, Speck Size, Kernel, Mix
 ```
 
-初版は **`max` 合成を既定**。Edge Restore モードは次点。
+Preset 属性（Morph 踏襲 + 差分）:
 
-## モード
+- `MatteProvider="True"`
+- `SupportsAction="True"` `SupportsTimeline="True"` `TimelineUseBack="False"`
+- `SupportsAdaptiveDegradation="True"`
+- `CommercialUsePermitted="True"` `LimitInputsToTexture="True"`
+- Description（英語）: hole/speck repair on matte coverage; soft edge kept via max/min with original.
 
-| Mode | コア処理 | 合成 | 用途 |
-|------|----------|------|------|
-| **Fill Holes**（既定） | Close | `max(m, filled)` | 内部の黒穴・細い切れ |
-| **Remove Specks** | Open | `min(m, opened)` | 外部の白ゴミ |
-| **Both** | Close のあと Open（または逆。実機で順を決める） | 上に同じ | 穴＋ゴミ |
-| **Core Replace** | Close/Open | 明示エッジ復元 or 全面 `filled` | 検証・ハードマット用 |
+## パス構成（実装メモ）
 
-Speck は「穴埋め」の対。同じツールに入れてよい（閾値＋半径が共通）。
+| 案 | 内容 |
+|----|------|
+| 推奨 | 閾値パス → 分離 Close/Open（Square 2、Circle は Morph に近い複数）→ 最終合成パス |
+| Size=0 | Morph パスをコピー通し、最終で `mix(m, max/min(m,core), …)` のみでも可 |
 
-## モルフォロジー
+マルチパス時は Morph と同様 `<Duplicate/>`。最終パスだけ Mix / View / Output / Front。
 
-- 既に `embr_morphology` がある。穴埋め専用は **マット1ch・Close/Open・半径小さめ**が主
-- 実装選択肢:
-  1. **本シェーダ内に短い分離 Close/Open**（パス数を抑える。Square/Line で十分）
-  2. Batch で `embr_morphology` を前段に置き、本シェーダは threshold + `max`/`min` だけ（薄いラッパ）
-- 推奨: **1 を初版**（1 ノードで完結）。Kernel は Square 既定、Circle は任意。Angle は不要なら隠す
-- 穴の直径が `2 * Size` を超えると Close では埋まらない → Size を上げるか、v2 の位相的穴埋めへ
+## 採用しなかった UI
 
-## 位相的穴埋め（v2・任意サイズの閉穴）
+| 候補 | 理由 |
+|------|------|
+| Amount + Mix | マット修復では同義になりやすい。Morph に合わせ Mix のみ |
+| Core Replace Mode | View=Core/Processed で足りる |
+| Unpremultiply | カバレッジ処理と無関係。混乱のもと |
+| Soft Threshold | 穴の境界が曖昧になる。ハード `step` の方が予測しやすい |
+| Fill Size と Speck Size を常時表示 | Fill だけ使うとき冗長。Both だけ Speck Size |
+| Line / Angle | 穴埋めに不要 |
+| Size max 256 | マット穴では過剰。64＋ degrade。足りなければ Morph を前段に |
 
-「外形に繋がっていない 0 領域だけ 1 にする」は **枠からの洪水**が本命。
+## 位相的穴埋め（v2）
 
-- Matchbox では非有界フラッドフィルは非現実的（[README の作らないもの](README.md)）
-- 近似: Jump Flood / 距離場で「背景（枠連結）」をラベルし、非背景かつ低 α を穴とみなす → `embr_distance` と連携する別モード
-- 初版スコープ外。Size 付き Close で「最大穴サイズ」を明示する方がアーティストにも分かりやすい
-
-## UI（案）
-
-| Control | Type | Default | 内容 |
-|---------|------|---------|------|
-| Channel | Popup | Matte R | Matte R / Front A / Front R |
-| Mode | Popup | Fill Holes | Fill Holes / Remove Specks / Both / Core Replace |
-| Threshold | float | 0.5 | コア切り |
-| Size | int | 2 | Close/Open 半径（px）。`adsk_degrade` で上限 |
-| Amount | float | 1 | |
-| Mix | float | 1 | 元マットとのブレンド |
-| View | Popup | Result | Result / Core / Filled / Diff |
-
-入力: **Matte 必須**（または Front の A）。Strength マットは任意（半径乗数）。  
-`MatteProvider="True"` にするかは用途次第:
-
-- マット修正ノードとして子へ渡すなら **True** を検討
-- Morph と同様に親マットパススルーなら False＋出力は Front にマットを載せる
-
-実機の Action / Batch での繋ぎ方を見て決める（未決）。
+枠連結の洪水は初版に入れない。UI も Mode に足さない。`embr_distance` 後に別 Mode または別シェーダ。
 
 ## やらないこと（初版）
 
-- 本物のフラッドフィル / 連結成分 / 面積条件の Opening
-- RGB エッジカラーの拡散（Edge Fill / extend）— 別シェーダ
-- マットの unpremultiply を必須ステップにすること
-- 巨大 Size の厳密 2D（Morph と同じく分離＋ degrade）
+- 非有界フラッドフィル、連結成分、面積 Opening  
+- RGB Edge Fill  
+- マットの Unpremultiply 必須化  
 
-## 差別化
+## 実機で触ってから変えうるもの
 
-| 手段 | 差 |
-|------|-----|
-| `embr_morphology` Close | RGB/Luma 向き。ソフトエッジを閉じると輪郭が太る |
-| **embr_holefill** | 閾値コアだけ Morph → `max`/`min` で **元のフォールオフを残す** |
-| 手動 Batch | 同じことは組める。1 ノード化が価値 |
-
-## 実装優先度
-
-- median / despill と独立。Morph があるので **実装コストは低め**（分離 Close + 合成）
-- 距離場穴埋めは `embr_distance` の後
-
-状態: **方針案・未実装**。合成の既定は `max(m, close(threshold(m)))`。
-
-## 実機で決めること
-
-| 項目 | 仮 |
-|------|-----|
-| MatteProvider | 要実機 |
-| Both の順 | Close→Open |
-| Threshold 既定 | 0.5 |
-| Kernel | Square |
-| 大きな穴 | Size を上げる。位相的 fill は v2 |
+| 項目 | 仮の確定 | 変えうる条件 |
+|------|----------|--------------|
+| Threshold 既定 0.5 | ○ | ソフトキーが多いなら 0.1–0.25 |
+| Size 既定 2 / max 64 | ○ | |
+| Speck Size 既定 1 | ○ | |
+| Output 既定 Replace Alpha | ○ | マット専用運用が主なら Matte RGB |
+| Both = Close→Open | ○ | |
+| Matte 未接続時 Front Alpha フォールバック | ○ | |
