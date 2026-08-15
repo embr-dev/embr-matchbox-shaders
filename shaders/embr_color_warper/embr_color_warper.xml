@@ -1,0 +1,101 @@
+<ShaderNodePreset
+    SupportsAdaptiveDegradation="False"
+    SupportsAction="True"
+    SupportsTransition="False"
+    SupportsTimeline="True"
+    TimelineUseBack="False"
+    MatteProvider="False"
+    CommercialUsePermitted="True"
+    ShaderType="Matchbox"
+    SoftwareVersion="2025.0.0"
+    LimitInputsToTexture="True"
+    Version="6"
+    Description="YUV chroma-plane colour warper plus ASC CDL. Gaussian weight around Pivot colour. Pin suppresses the warp. CDL is mix(src, CDL(src), w), then Hue/Exposure/Sat. No display clamp."
+    Name="Embr Color Warper">
+  <Shader OutputBitDepth="Output" Index="1">
+    <Uniform Index="0" NoInput="Error"
+             Tooltip="Image to grade. Required."
+             DisplayName="Front" InputType="Front"
+             Mipmaps="False"
+             GL_TEXTURE_WRAP_T="GL_CLAMP_TO_EDGE" GL_TEXTURE_WRAP_S="GL_CLAMP_TO_EDGE"
+             GL_TEXTURE_MAG_FILTER="GL_LINEAR" GL_TEXTURE_MIN_FILTER="GL_LINEAR"
+             Type="sampler2D" Name="front"/>
+    <Uniform Index="1" NoInput="White"
+             Tooltip="Per-pixel Mix (red). Unconnected is full Mix."
+             DisplayName="Selective" InputType="Selective"
+             Mipmaps="False"
+             GL_TEXTURE_WRAP_T="GL_CLAMP_TO_EDGE" GL_TEXTURE_WRAP_S="GL_CLAMP_TO_EDGE"
+             GL_TEXTURE_MAG_FILTER="GL_LINEAR" GL_TEXTURE_MIN_FILTER="GL_LINEAR"
+             Type="sampler2D" Name="selective"/>
+    <Uniform Inc="0.01" Row="0" Col="0" Page="0" DisplayName="Pivot"
+             Tooltip="Centre colour of the warp. Sample the hue you want to move."
+             ValueType="Colour" Type="vec3" ChannelName="pivot" Name="pivot">
+      <SubUniform ResDependent="None" Max="1000000.0" Min="-1000000.0" Default="0.0"/>
+      <SubUniform ResDependent="None" Max="1000000.0" Min="-1000000.0" Default="0.5"/>
+      <SubUniform ResDependent="None" Max="1000000.0" Min="-1000000.0" Default="1.0"/>
+    </Uniform>
+    <Uniform ResDependent="None" Max="1.0" Min="0.0" Default="0.12" Inc="0.01"
+             Tooltip="Gaussian sigma in YUV chroma. 0 is off. Larger includes more neighbouring hues."
+             Row="1" Col="0" Page="0" Type="float" ChannelName="falloff" DisplayName="Width" Name="falloff"/>
+    <Uniform Inc="0.01" Row="2" Col="0" Page="0" DisplayName="Pin"
+             Tooltip="Colour to hold. Default is Macbeth Light Skin. Same Gaussian as Pivot. Pin Width 0 is off."
+             ValueType="Colour" Type="vec3" ChannelName="pin" Name="pin">
+      <SubUniform ResDependent="None" Max="1000000.0" Min="-1000000.0" Default="0.761"/>
+      <SubUniform ResDependent="None" Max="1000000.0" Min="-1000000.0" Default="0.588"/>
+      <SubUniform ResDependent="None" Max="1000000.0" Min="-1000000.0" Default="0.510"/>
+    </Uniform>
+    <Uniform ResDependent="None" Max="1.0" Min="0.0" Default="0.08" Inc="0.01"
+             Tooltip="Gaussian sigma that suppresses the warp around Pin. 0 is off."
+             Row="3" Col="0" Page="0" Type="float" ChannelName="pin_falloff" DisplayName="Pin Width" Name="pin_falloff"/>
+    <Uniform ResDependent="None" Max="180.0" Min="-180.0" Default="0.0" Inc="0.1"
+             Tooltip="Rotate chroma around grey, weighted by the pivot. Degrees."
+             Row="0" Col="1" Page="0" Type="float" ChannelName="hue" DisplayName="Hue" Name="hue"/>
+    <Uniform ResDependent="None" Max="4.0" Min="-4.0" Default="0.0" Inc="0.01"
+             Tooltip="Stops on Y only, weighted by the pivot. 0 is unchanged."
+             Row="1" Col="1" Page="0" Type="float" ChannelName="exposure" DisplayName="Exposure" Name="exposure"/>
+    <Uniform ResDependent="None" Max="4.0" Min="0.0" Default="1.0" Inc="0.01"
+             Tooltip="Chroma scale at the pivot. 1 is unchanged. Mixes toward this value by weight."
+             Row="2" Col="1" Page="0" Type="float" ChannelName="saturation" DisplayName="Saturation" Name="saturation"/>
+    <Uniform ResDependent="None" Max="1.0" Min="0.0" Default="1.0" Inc="0.01"
+             Tooltip="Blend with original Front, times Selective red."
+             Row="0" Col="2" Page="0" Type="float" ChannelName="mix_amount" DisplayName="Mix" Name="mix_amount"/>
+    <Uniform Default="False"
+             Tooltip="Red is warp after Pin. Cyan is Pin hold. Off outputs the grade. Alpha stays Front."
+             Row="1" Col="2" Page="0" Type="bool" ChannelName="preview" DisplayName="Preview" Name="preview"/>
+    <Uniform Inc="0.01" Row="0" Col="0" Page="1" DisplayName="Slope"
+             Tooltip="ASC CDL slope. Identity 1. Applied as mix(src, CDL(src), w). No display clamp."
+             IconType="None" ValueType="ColourWheelRGBSlope" Type="vec3" ChannelName="cdl_slope" Name="cdl_slope">
+      <SubUniform ResDependent="None" Max="1000.0" Min="-1000.0" Default="1.0" DisplayName="R" ChannelName="R"/>
+      <SubUniform ResDependent="None" Max="1000.0" Min="-1000.0" Default="1.0" DisplayName="G" ChannelName="G"/>
+      <SubUniform ResDependent="None" Max="1000.0" Min="-1000.0" Default="1.0" DisplayName="B" ChannelName="B"/>
+    </Uniform>
+    <Uniform Inc="0.01" Row="0" Col="1" Page="1" DisplayName="Offset"
+             Tooltip="ASC CDL offset. Identity 0. Applied as mix(src, CDL(src), w). No display clamp."
+             IconType="None" ValueType="ColourWheelRGBOffset" Type="vec3" ChannelName="cdl_offset" Name="cdl_offset">
+      <SubUniform ResDependent="None" Max="1000.0" Min="-1000.0" Default="0.0" DisplayName="R" ChannelName="R"/>
+      <SubUniform ResDependent="None" Max="1000.0" Min="-1000.0" Default="0.0" DisplayName="G" ChannelName="G"/>
+      <SubUniform ResDependent="None" Max="1000.0" Min="-1000.0" Default="0.0" DisplayName="B" ChannelName="B"/>
+    </Uniform>
+    <Uniform Inc="0.01" Row="0" Col="2" Page="1" DisplayName="Power"
+             Tooltip="ASC CDL power. Identity 1. Negative SOP skips pow. Applied as mix(src, CDL(src), w)."
+             IconType="None" ValueType="ColourWheelRGBPower" Type="vec3" ChannelName="cdl_power" Name="cdl_power">
+      <SubUniform ResDependent="None" Max="1000.0" Min="-1000.0" Default="1.0" DisplayName="R" ChannelName="R"/>
+      <SubUniform ResDependent="None" Max="1000.0" Min="-1000.0" Default="1.0" DisplayName="G" ChannelName="G"/>
+      <SubUniform ResDependent="None" Max="1000.0" Min="-1000.0" Default="1.0" DisplayName="B" ChannelName="B"/>
+    </Uniform>
+    <Uniform ResDependent="None" Max="4.0" Min="0.0" Default="1.0" Inc="0.01"
+             Tooltip="ASC CDL saturation after SOP. 1 is unchanged. Uses Flame luminance."
+             Row="0" Col="3" Page="1" Type="float" ChannelName="cdl_sat" DisplayName="Saturation" Name="cdl_sat"/>
+  </Shader>
+  <Page Name="Pivot" ColName0_2="Pivot" ColName3_5="Pivot" Page="0">
+    <Col Name="Pivot" Col="0" Page="0"/>
+    <Col Name="Warp" Col="1" Page="0"/>
+    <Col Name="Mix" Col="2" Page="0"/>
+  </Page>
+  <Page Name="CDL" ColName0_2="CDL" ColName3_5="CDL" Page="1">
+    <Col Name="Slope" Col="0" Page="1"/>
+    <Col Name="Offset" Col="1" Page="1"/>
+    <Col Name="Power" Col="2" Page="1"/>
+    <Col Name="Sat" Col="3" Page="1"/>
+  </Page>
+</ShaderNodePreset>

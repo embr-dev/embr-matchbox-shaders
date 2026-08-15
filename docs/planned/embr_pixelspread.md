@@ -1,123 +1,55 @@
-# embr_pixelspread（検討メモ・未実装）
+# embr_pixelspread（仕様）
 
-表示名案: **Embr Pixel Spread**。キー縁の汚れた色を直し、透明／低 α 側へ **前景色を押し出す**（Edge Extend 族）。
+表示名: **Embr Pixel Spread**。マットをガイドに縁の色を外へ伸ばす。
 
-関連: [README.md](README.md)、[embr_holefill.md](embr_holefill.md)（α 修理・別物）、[embr_morphology](../../shaders/embr_morphology/README.md)、下節の **別シェーダ候補**。
+**2026-08-15 ボツ。** 実写キーでの見た目が実用に届かなかった。`shaders/embr_pixelspread` は削除済み。再開時はこのファイルの「中断ログ」から。
 
-状態: **方向性確定・UI は未詰め・未実装**（2026-08-15）。
-
----
-
-## 意図と非スコープ
-
-| やる | やらない（本シェーダ） |
-|------|------------------------|
-| 縁の RGB を内側のきれいな色で伸ばす | マット穴の α 埋め → **embr_holefill** |
-| ソフトマット縁のスピル色・MB 汚染の軽減 | 任意サイズの色 Solidify → **別シェーダ**（下節） |
-| Premul / Unpremul を明示 | 本格 Inpaint / Push–Pull ピラミッド |
-
-用途の主眼は Nuke EdgeExtend / LOGIK Pixel Spread / `crok_matte_edge` の色押し出し側。
+関連: [README.md](README.md)、[embr_holefill.md](embr_holefill.md)、[embr_morphology](../../shaders/embr_morphology/README.md)。
 
 ---
 
-## 統合するアルゴリズム（1 ノード）
+## 中断ログ（2026-08-15）
 
-入出力・Size・Mix・Detail・Premul が共有できるものだけ Mode で併置する。
+キー縁の dirty RGB を直し、透明側へきれいな色を伸ばす Matchbox を止めた。クオリティがいまいち、という判断。
 
-| Mode（仮） | 系統 | 概要 |
-|------------|------|------|
-| **Dilate** | Morph Max/Min | α／輝度を重みに近傍 RGB を拡張。安価・定番 |
-| **Blur** | Blur + Unpremult | premul ぼかし → α で割る（古典 Pixel Spread） |
-| **Stretch** | Gradient advect | α 勾配方向にサンプルをずらす |
-| **Smear** | Gradient 系の強い版 | Stretch より長くにじませる |
-| （任意）**Erode Push** | Erode→押し戻し | コアを削ってから外へ戻す簡易 EdgeExtend |
+試したもの（4 パス、クラシック GLSL）:
 
-共通後段（Mode 非依存）:
+- Inset（分離 min）で縁を避けて色を取る
+- Dilate: 分離 1D、より高い a の一番近い画素をコピー
+- Blur: `matte - inset` の帯だけ premul ガウシアン
+- Stretch: 局所勾配ジャンプ → 体のゴースト。のちブラーマット勾配を縁まで歩くハロー
+- Smear: 8/16/32 レイで一番近い内側をコピー（筋・多角）
+- 最後に Inset コアへ Front を戻し、Feather はコアより外へ広げない
 
-- **Detail Restore** — extend 後に原画を min/max または軽い周波数戻し
-- **Premultiply in / out** — 入出力の premul 前提トグル
-- **Edge Mask** 出力（View または A）— 縁だけ別処理用
-- **Mix** / Selective
+分かったこと:
 
-参考（コピーしない）: Nuke EdgeExtend、VectorExtendEdge、`crok_pixelspread` / `crok_matte_edge`（Spread Type）、Ls_Dilate、LOGIK フォーラムの blur+divide 説明。
+- 分離 Dilate は軸方向の筋が出る。2D 最近傍にするとレイの本数不足で神の光／コピーになる。本数を増やすと重い。
+- Size 分だけ内側へジャンプすると、縁ではなく人物そのものがずれる。
+- 1px 勾配は硬いキーでは外側でゼロ、残 α だと `rgb/a` が点々になる。
+- Blur は内側をくり抜かないと服や顔がハローに混ざる。くり抜くとコアが穴になる。
+- Front を元のマットで戻すと dirty 縁が戻る。Inset コアで戻しても、伸ばした側の色がまだ弱い。
+- この系統の「きれいな縁伸ばし」は距離場（JFA）か、最近傍色埋め（solidify）の方が本命。Matchbox の有界ループ＋分離パスでは、大きい Size の等方ハローが作りにくい。
 
----
+再開するときの候補:
 
-## 処理の骨格（仮）
+- **embr_solidify**（JFA / 最近傍で透明部に色をコピー）として約束し直す
+- Pixel Spread という名前で Dilate/Blur/Stretch/Smear を同居させない
+- 大きい半径の 2D 探索を Matchbox フラグメントの二重ループでやらない
 
-```
-src_rgb, src_a = front (+ matte override)
-work = IsPremultiplied ? src : src_rgb * src_a   // 作業は premul 寄りが扱いやすいことが多い
-
-extended = switch(mode):
-  Dilate  → morph_max_color(work, radius, guided_by_a)
-  Blur    → blur(work) ; unpremult_safe
-  Stretch → sample(work, uv - amount * grad(a))
-  Smear   → 同上（距離・減衰違い）
-
-extended = detail_restore(extended, front, detail_amount)
-out_rgb  = PremultiplyOut ? extended.rgb : unpremult_safe(extended)
-out      = mix(front, out_rgb(+a), mix * selective)
-```
-
-数式・パス数は実装前に確定。Blur は分離ガウシアン、Dilate は Morph 短半径または既存 morph パターン流用。
-
-**linear / unclamped**: 表示 `clamp(rgb,0,1)` はしない（grade / despill と同じ）。`unpremult_safe` は α≈0 の除算ガードのみ。
+実装フォルダは削除済み。
 
 ---
 
-## UI（方向のみ・未確定）
+## 意図（当時）
 
-| 列 | コントロール案 |
-|----|----------------|
-| Setup | Mode、Is Premultiplied、Premultiply Out、Mix、View（Result / Source / Edge Mask / Diff） |
-| Spread | Size / Amount、Aspect、（Stretch/Smear 時）Edge Width、Detail Amount |
-| Matte | Source Alpha / Matte / Inverted 系（Nuke EdgeExtend に近い選択） |
+出力は不透明 RGB（A=1）。マットはガイド。縁の色を伸ばしたあと、Inset コアへだけ Front を戻す。
 
-主操作は **Mode + Size + Detail**。マット整形（Gamma/Erode/Blur の Matte Edge 本体）は本ノードの主目的にしない。
+やらない: Detail / Mix / Selective / Premultiply Out、マット穴埋め、Inpaint。表示 `clamp(rgb,0,1)` はしない。
 
-入力: Front 必須、Matte 任意、Selective 任意。`MatteProvider` は要検討（既定 False 寄り。Edge Mask を A に載せるなら要実機）。
+## 別シェーダとして検討するもの
 
----
-
-## 別シェーダとして検討するもの（併記）
-
-本メモのスコープ外。必要ならそれぞれ独立メモ／実装にする。
-
-| 仮名 | 内容 | 分ける理由 | 関連 |
-|------|------|------------|------|
-| **embr_solidify**（仮） | JFA / 最近傍で透明部に色をコピー・補間 | パス数 8–12+。任意サイズ穴の **色埋め**が主目的。縁の微調整 UI と合わない | `embr_distance` と一体または直後 |
-| **embr_matte_edge**（仮） | マットの Erode/Blur/Gamma／幅・ソフト | 主出力がマット。色スプレッドはオプションに過ぎない | holefill / morph と役割分担 |
-| **embr_edge_push**（仮） | 法線・距離からベクトル場を作り本格ワープ | 中間パス・変位が本体。薄い Spread Mode に載せると肥大化 | Stretch で足りなければ分離 |
-| （作らない）Push–Pull ピラミッド | ミップ多解像度穴埋め | Matchbox の RT モデルと相性が悪い | — |
-| （作らない）本格 Inpaint | Telea / PatchMatch 等 | リアルタイム枠外 | — |
-
-### holefill / solidify / pixelspread の役割分担
-
-| シェーダ | 主に直すもの |
-|----------|----------------|
-| **embr_holefill** | **α（カバレッジ）**の穴・ゴミ。ソフトエッジ保持 |
-| **embr_pixelspread** | **RGB** を縁の外／低 α へ伸ばす（縁色直し） |
-| **embr_solidify**（別検討） | 透明領域への **RGB 最近傍埋め**（大穴・プレート穴） |
-| **embr_distance**（概要） | 距離場。solidify / holefill v2 の基盤 |
-
----
-
-## 実装優先度
-
-- grade / median と独立。Morph・分離ブラーがあれば Phase 1 は現実的
-- 初版 Mode: **Dilate + Blur** を先に、Stretch/Smear はすぐ後
-- solidify / matte_edge / edge_push は **本シェーダ完成後に別検討**（このメモの表を更新）
-
-## やらないこと（本シェーダ）
-
-- JFA Solidify の内蔵
-- マット専用 Edge ツールのフル再現を主目的にすること
-- LOGIK / Nuke の無断再配布
-- 表示レンジ clamp
-
-## 次のステップ
-
-1. Mode 一覧と処理順を疑似コードで固定  
-2. Dilate / Blur のパス数見積もり  
-3. UI を holefill 並みに確定してから実装  
+| 仮名 | 内容 |
+|------|------|
+| **embr_solidify** | JFA / 最近傍で透明部に色をコピー |
+| **embr_matte_edge** | マットの Erode/Blur/Gamma |
+| **embr_edge_push** | 法線・距離のベクトル場ワープ |

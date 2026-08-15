@@ -15,9 +15,21 @@
 | `.7` | Angle+45°（Circle の菱形 2 回目） |
 | `.8` | Angle+135°（Circle の菱形 2 回目）。Mix |
 | `.xml` | UI |
-| `.1.glsl.png` | ブラウザ用サムネイル（128×92） |
+| `.1.glsl.png` | サムネイル原画（128×92） |
+| `.1.glsl.p` | GLSL モード用プロキシ（同じ解像度、`flame_proxy_icon`） |
 
-配布は `.glsl` + `.xml` + `.png`。Flame 2025（Metal / この Mac の `shader_builder`）では `.mx` はコンパイルあり・なしどちらも `CreateRenderGraph` で落ちる。
+PNG 解像度のまま `.p` にする。`.mx` のサムネイルは **Linux** で焼く。Mac の `shader_builder` は `DISPLAY=:0` でも Matchbox サムネイルは空。
+
+```bash
+# macOS: GLSL 用 sidecar
+flame_proxy_icon --from-png shaders/embr_morphology/embr_morphology.1.glsl.png
+
+# Linux: サムネイル付き .mx
+flame_proxy_icon --from-png embr_morphology.1.glsl.png
+shader_builder -m -p embr_morphology.*.glsl
+```
+
+`.1.glsl` だけだと後続パスが入らず `CreateRenderGraph` になる。全パスを渡した `.mx` は Flame 2025（Metal / macOS）で動作確認済み。
 
 Matchbox に `#include` が無いため、ヘルパーは各パスに同じ実装を置く。パスごとの差は `main` と使う uniform だけ。
 

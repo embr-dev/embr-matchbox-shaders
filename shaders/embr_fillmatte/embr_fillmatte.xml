@@ -1,0 +1,192 @@
+<ShaderNodePreset
+    SupportsAdaptiveDegradation="True"
+    SupportsAction="True"
+    SupportsTransition="False"
+    SupportsTimeline="True"
+    TimelineUseBack="False"
+    MatteProvider="True"
+    CommercialUsePermitted="True"
+    ShaderType="Matchbox"
+    SoftwareVersion="2025.0.0"
+    LimitInputsToTexture="True"
+    Version="15"
+    Description="Linear-step Close Fill, then Comp mixes the input back in the Edge. Preview overlays a translucent red Edge on the input. Coverage in RGB and A. No display clamp."
+    Name="Embr Fill Matte">
+  <Shader OutputBitDepth="Output" Index="1">
+    <Uniform Index="0" NoInput="Error"
+             Tooltip="Coverage. Required."
+             DisplayName="Matte" InputType="Matte"
+             Mipmaps="False"
+             GL_TEXTURE_WRAP_T="GL_CLAMP_TO_EDGE" GL_TEXTURE_WRAP_S="GL_CLAMP_TO_EDGE"
+             GL_TEXTURE_MAG_FILTER="GL_NEAREST" GL_TEXTURE_MIN_FILTER="GL_NEAREST"
+             Type="sampler2D" Name="matte">
+    </Uniform>
+    <Uniform ResDependent="None" Max="1.0" Min="0.0" Default="0.0" Inc="0.01"
+             Tooltip="Linear step black point. Values at or below Low stay 0."
+             Row="0" Col="0" Page="0" Type="float" ChannelName="linear_low" DisplayName="Low" Name="linear_low">
+    </Uniform>
+    <Uniform ResDependent="None" Max="1.0" Min="0.0" Default="0.25" Inc="0.01"
+             Tooltip="Linear step white point. Values at or above High become 1. Gray between Low and High ramps."
+             Row="1" Col="0" Page="0" Type="float" ChannelName="linear_high" DisplayName="High" Name="linear_high">
+    </Uniform>
+    <Uniform Max="64" Min="0" Default="0" Inc="1"
+             Tooltip="Close radius in pixels after linear step. Fills small dark holes. 0 is linear step only. Adaptive Degradation caps at 8."
+             Row="2" Col="0" Page="0" Type="int" ChannelName="close_size" DisplayName="Close" Name="close_size">
+    </Uniform>
+    <Uniform Max="64" Min="0" Default="0" Inc="1"
+             Tooltip="Hard Edge radius from the Fill boundary in pixels. Stays solid; Softness grows extra then blurs. Octagon. Adaptive Degradation caps at 8."
+             Row="0" Col="1" Page="0" Type="int" ChannelName="size" DisplayName="Size" Name="size">
+    </Uniform>
+    <Uniform Max="64" Min="0" Default="5" Inc="1"
+             Tooltip="Grow the Edge by this many pixels then box-blur. Size core stays hard. Adaptive Degradation caps at 8."
+             Row="1" Col="1" Page="0" Type="int" ChannelName="softness" DisplayName="Softness" Name="softness">
+    </Uniform>
+    <Uniform Default="False"
+             Tooltip="Translucent red Edge guide on the input. Off outputs Comp (Fill mixed with input in the Edge)."
+             Row="2" Col="1" Page="0" Type="bool" ChannelName="preview" DisplayName="Preview" Name="preview">
+    </Uniform>
+  </Shader>
+  <Shader OutputBitDepth="Output" Index="2">
+    <Uniform Mipmaps="False"
+             GL_TEXTURE_WRAP_T="GL_CLAMP_TO_EDGE" GL_TEXTURE_WRAP_S="GL_CLAMP_TO_EDGE"
+             GL_TEXTURE_MAG_FILTER="GL_NEAREST" GL_TEXTURE_MIN_FILTER="GL_NEAREST"
+             Type="sampler2D" Name="adsk_results_pass1">
+    </Uniform>
+    <Uniform Type="int" Name="close_size"><Duplicate/></Uniform>
+  </Shader>
+  <Shader OutputBitDepth="Output" Index="3">
+    <Uniform Mipmaps="False"
+             GL_TEXTURE_WRAP_T="GL_CLAMP_TO_EDGE" GL_TEXTURE_WRAP_S="GL_CLAMP_TO_EDGE"
+             GL_TEXTURE_MAG_FILTER="GL_NEAREST" GL_TEXTURE_MIN_FILTER="GL_NEAREST"
+             Type="sampler2D" Name="adsk_results_pass2">
+    </Uniform>
+    <Uniform Type="int" Name="close_size"><Duplicate/></Uniform>
+  </Shader>
+  <Shader OutputBitDepth="Output" Index="4">
+    <Uniform Mipmaps="False"
+             GL_TEXTURE_WRAP_T="GL_CLAMP_TO_EDGE" GL_TEXTURE_WRAP_S="GL_CLAMP_TO_EDGE"
+             GL_TEXTURE_MAG_FILTER="GL_NEAREST" GL_TEXTURE_MIN_FILTER="GL_NEAREST"
+             Type="sampler2D" Name="adsk_results_pass3">
+    </Uniform>
+    <Uniform Type="int" Name="close_size"><Duplicate/></Uniform>
+  </Shader>
+  <Shader OutputBitDepth="Output" Index="5">
+    <Uniform Mipmaps="False"
+             GL_TEXTURE_WRAP_T="GL_CLAMP_TO_EDGE" GL_TEXTURE_WRAP_S="GL_CLAMP_TO_EDGE"
+             GL_TEXTURE_MAG_FILTER="GL_NEAREST" GL_TEXTURE_MIN_FILTER="GL_NEAREST"
+             Type="sampler2D" Name="adsk_results_pass4">
+    </Uniform>
+    <Uniform Type="int" Name="close_size"><Duplicate/></Uniform>
+  </Shader>
+  <Shader OutputBitDepth="Output" Index="6">
+    <Uniform Mipmaps="False"
+             GL_TEXTURE_WRAP_T="GL_CLAMP_TO_EDGE" GL_TEXTURE_WRAP_S="GL_CLAMP_TO_EDGE"
+             GL_TEXTURE_MAG_FILTER="GL_NEAREST" GL_TEXTURE_MIN_FILTER="GL_NEAREST"
+             Type="sampler2D" Name="adsk_results_pass5">
+    </Uniform>
+    <Uniform Type="int" Name="size"><Duplicate/></Uniform>
+    <Uniform Type="int" Name="softness"><Duplicate/></Uniform>
+  </Shader>
+  <Shader OutputBitDepth="Output" Index="7">
+    <Uniform Mipmaps="False"
+             GL_TEXTURE_WRAP_T="GL_CLAMP_TO_EDGE" GL_TEXTURE_WRAP_S="GL_CLAMP_TO_EDGE"
+             GL_TEXTURE_MAG_FILTER="GL_NEAREST" GL_TEXTURE_MIN_FILTER="GL_NEAREST"
+             Type="sampler2D" Name="adsk_results_pass6">
+    </Uniform>
+    <Uniform Type="int" Name="size"><Duplicate/></Uniform>
+    <Uniform Type="int" Name="softness"><Duplicate/></Uniform>
+  </Shader>
+  <Shader OutputBitDepth="Output" Index="8">
+    <Uniform Mipmaps="False"
+             GL_TEXTURE_WRAP_T="GL_CLAMP_TO_EDGE" GL_TEXTURE_WRAP_S="GL_CLAMP_TO_EDGE"
+             GL_TEXTURE_MAG_FILTER="GL_NEAREST" GL_TEXTURE_MIN_FILTER="GL_NEAREST"
+             Type="sampler2D" Name="adsk_results_pass7">
+    </Uniform>
+    <Uniform Type="int" Name="size"><Duplicate/></Uniform>
+    <Uniform Type="int" Name="softness"><Duplicate/></Uniform>
+  </Shader>
+  <Shader OutputBitDepth="Output" Index="9">
+    <Uniform Mipmaps="False"
+             GL_TEXTURE_WRAP_T="GL_CLAMP_TO_EDGE" GL_TEXTURE_WRAP_S="GL_CLAMP_TO_EDGE"
+             GL_TEXTURE_MAG_FILTER="GL_NEAREST" GL_TEXTURE_MIN_FILTER="GL_NEAREST"
+             Type="sampler2D" Name="adsk_results_pass8">
+    </Uniform>
+    <Uniform Type="int" Name="size"><Duplicate/></Uniform>
+    <Uniform Type="int" Name="softness"><Duplicate/></Uniform>
+  </Shader>
+  <Shader OutputBitDepth="Output" Index="10">
+    <Uniform Mipmaps="False"
+             GL_TEXTURE_WRAP_T="GL_CLAMP_TO_EDGE" GL_TEXTURE_WRAP_S="GL_CLAMP_TO_EDGE"
+             GL_TEXTURE_MAG_FILTER="GL_NEAREST" GL_TEXTURE_MIN_FILTER="GL_NEAREST"
+             Type="sampler2D" Name="adsk_results_pass5">
+    </Uniform>
+    <Uniform Type="int" Name="size"><Duplicate/></Uniform>
+    <Uniform Type="int" Name="softness"><Duplicate/></Uniform>
+  </Shader>
+  <Shader OutputBitDepth="Output" Index="11">
+    <Uniform Mipmaps="False"
+             GL_TEXTURE_WRAP_T="GL_CLAMP_TO_EDGE" GL_TEXTURE_WRAP_S="GL_CLAMP_TO_EDGE"
+             GL_TEXTURE_MAG_FILTER="GL_NEAREST" GL_TEXTURE_MIN_FILTER="GL_NEAREST"
+             Type="sampler2D" Name="adsk_results_pass10">
+    </Uniform>
+    <Uniform Type="int" Name="size"><Duplicate/></Uniform>
+    <Uniform Type="int" Name="softness"><Duplicate/></Uniform>
+  </Shader>
+  <Shader OutputBitDepth="Output" Index="12">
+    <Uniform Mipmaps="False"
+             GL_TEXTURE_WRAP_T="GL_CLAMP_TO_EDGE" GL_TEXTURE_WRAP_S="GL_CLAMP_TO_EDGE"
+             GL_TEXTURE_MAG_FILTER="GL_NEAREST" GL_TEXTURE_MIN_FILTER="GL_NEAREST"
+             Type="sampler2D" Name="adsk_results_pass11">
+    </Uniform>
+    <Uniform Type="int" Name="size"><Duplicate/></Uniform>
+    <Uniform Type="int" Name="softness"><Duplicate/></Uniform>
+  </Shader>
+  <Shader OutputBitDepth="Output" Index="13">
+    <Uniform Mipmaps="False"
+             GL_TEXTURE_WRAP_T="GL_CLAMP_TO_EDGE" GL_TEXTURE_WRAP_S="GL_CLAMP_TO_EDGE"
+             GL_TEXTURE_MAG_FILTER="GL_NEAREST" GL_TEXTURE_MIN_FILTER="GL_NEAREST"
+             Type="sampler2D" Name="adsk_results_pass12">
+    </Uniform>
+    <Uniform Type="int" Name="size"><Duplicate/></Uniform>
+    <Uniform Type="int" Name="softness"><Duplicate/></Uniform>
+  </Shader>
+  <Shader OutputBitDepth="Output" Index="14">
+    <Uniform Mipmaps="False"
+             GL_TEXTURE_WRAP_T="GL_CLAMP_TO_EDGE" GL_TEXTURE_WRAP_S="GL_CLAMP_TO_EDGE"
+             GL_TEXTURE_MAG_FILTER="GL_NEAREST" GL_TEXTURE_MIN_FILTER="GL_NEAREST"
+             Type="sampler2D" Name="adsk_results_pass9">
+    </Uniform>
+    <Uniform Mipmaps="False"
+             GL_TEXTURE_WRAP_T="GL_CLAMP_TO_EDGE" GL_TEXTURE_WRAP_S="GL_CLAMP_TO_EDGE"
+             GL_TEXTURE_MAG_FILTER="GL_NEAREST" GL_TEXTURE_MIN_FILTER="GL_NEAREST"
+             Type="sampler2D" Name="adsk_results_pass13">
+    </Uniform>
+  </Shader>
+  <Shader OutputBitDepth="Output" Index="15">
+    <Uniform Mipmaps="False"
+             GL_TEXTURE_WRAP_T="GL_CLAMP_TO_EDGE" GL_TEXTURE_WRAP_S="GL_CLAMP_TO_EDGE"
+             GL_TEXTURE_MAG_FILTER="GL_LINEAR" GL_TEXTURE_MIN_FILTER="GL_LINEAR"
+             Type="sampler2D" Name="adsk_results_pass14">
+    </Uniform>
+    <Uniform Type="int" Name="softness"><Duplicate/></Uniform>
+  </Shader>
+  <Shader OutputBitDepth="Output" Index="16">
+    <Uniform Type="sampler2D" Name="matte"><Duplicate/></Uniform>
+    <Uniform Mipmaps="False"
+             GL_TEXTURE_WRAP_T="GL_CLAMP_TO_EDGE" GL_TEXTURE_WRAP_S="GL_CLAMP_TO_EDGE"
+             GL_TEXTURE_MAG_FILTER="GL_NEAREST" GL_TEXTURE_MIN_FILTER="GL_NEAREST"
+             Type="sampler2D" Name="adsk_results_pass5">
+    </Uniform>
+    <Uniform Mipmaps="False"
+             GL_TEXTURE_WRAP_T="GL_CLAMP_TO_EDGE" GL_TEXTURE_WRAP_S="GL_CLAMP_TO_EDGE"
+             GL_TEXTURE_MAG_FILTER="GL_LINEAR" GL_TEXTURE_MIN_FILTER="GL_LINEAR"
+             Type="sampler2D" Name="adsk_results_pass15">
+    </Uniform>
+    <Uniform Type="bool" Name="preview"><Duplicate/></Uniform>
+    <Uniform Type="int" Name="softness"><Duplicate/></Uniform>
+  </Shader>
+  <Page Name="Fill Matte" ColName0_2="Fill Matte" ColName3_5="Fill Matte" Page="0">
+    <Col Name="Fill" Col="0" Page="0"/>
+    <Col Name="Edge" Col="1" Page="0"/>
+  </Page>
+</ShaderNodePreset>

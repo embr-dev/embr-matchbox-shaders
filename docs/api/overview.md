@@ -19,7 +19,7 @@ Flame では両方使える。Flare は Lightbox と Action 内 Matchbox あり�
 
 1. **`.glsl`** — 必須。これだけでも Flame は粗い UI を生成する。
 2. **`.xml`** — sidecar。`shader_builder -x` で生成し、UI・入力ソケット・用途ヒントを編集する。
-3. **プロキシ** — 任意。ブラウザ用サムネイル（`.png` および/または `.p`）。
+3. **プロキシ** — GLSL は sidecar `.p`（`flame_proxy_icon`、PNG 解像度のまま）。`.mx` のサムネイルは Linux の `shader_builder`。詳細は [packaging.md](packaging.md)。
 4. **プリセット** — 任意。`<name>.preset.xml`。
 
 マルチパスでは `Name.1.glsl` + `Name.2.glsl` + 単一の `Name.xml`。ブラウザではルートの `Name.glsl`（またはパッケージ）を選ぶ。
@@ -31,7 +31,7 @@ Flame では両方使える。Flare は Lightbox と Action 内 Matchbox あり�
 3. エラーを直し、再実行。2025.1 以降は警告だったものがエラーになることがある。
 4. XML を編集（DisplayName、Row/Col/Page、InputType、Default、Tooltip）。
 5. Flame の Shader Paths または `/opt/Autodesk/shared/matchbox/shaders/` に置いて読み込む。
-6. 必要なら `shader_builder -m -p shader.glsl` で `.mx` を作る。
+6. 必要なら `.mx` を作る。シングルパスは `shader_builder -m -p shader.glsl`。マルチパスは `shader_builder -m -p shader.*.glsl`（全パス。詳細は [packaging.md](packaging.md)）。
 
 ## GLSL バージョン
 

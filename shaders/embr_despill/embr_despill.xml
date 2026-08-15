@@ -1,0 +1,111 @@
+<ShaderNodePreset
+    SupportsAdaptiveDegradation="False"
+    SupportsAction="True"
+    SupportsTransition="False"
+    SupportsTimeline="True"
+    TimelineUseBack="True"
+    MatteProvider="False"
+    CommercialUsePermitted="True"
+    ShaderType="Matchbox"
+    SoftwareVersion="2025.0.0"
+    LimitInputsToTexture="True"
+    Version="11"
+    Description="Green, Blue, Cyan, and Custom despill. Custom hue-aligns Spill Colour to Green then uses the Green algorithms. Additive Luma/Colour/Background replace. No display clamp."
+    Name="Embr Despill">
+  <Shader OutputBitDepth="Output" Index="1">
+    <Uniform Index="0" NoInput="Error" DisplayName="Front" InputType="Front"
+             Mipmaps="False"
+             GL_TEXTURE_WRAP_T="GL_CLAMP_TO_EDGE" GL_TEXTURE_WRAP_S="GL_CLAMP_TO_EDGE"
+             GL_TEXTURE_MAG_FILTER="GL_LINEAR" GL_TEXTURE_MIN_FILTER="GL_LINEAR"
+             Type="sampler2D" Name="front">
+    </Uniform>
+    <Uniform Index="1" NoInput="Black"
+             Tooltip="Replace Background. Unconnected is black (adds nothing)."
+             DisplayName="Back" InputType="Back"
+             Mipmaps="False"
+             GL_TEXTURE_WRAP_T="GL_CLAMP_TO_EDGE" GL_TEXTURE_WRAP_S="GL_CLAMP_TO_EDGE"
+             GL_TEXTURE_MAG_FILTER="GL_LINEAR" GL_TEXTURE_MIN_FILTER="GL_LINEAR"
+             Type="sampler2D" Name="back">
+    </Uniform>
+    <Uniform Index="2" NoInput="White"
+             Tooltip="Amount mask (red). Unconnected is full amount."
+             DisplayName="Matte" InputType="Matte"
+             Mipmaps="False"
+             GL_TEXTURE_WRAP_T="GL_CLAMP_TO_EDGE" GL_TEXTURE_WRAP_S="GL_CLAMP_TO_EDGE"
+             GL_TEXTURE_MAG_FILTER="GL_LINEAR" GL_TEXTURE_MIN_FILTER="GL_LINEAR"
+             Type="sampler2D" Name="matte">
+    </Uniform>
+    <Uniform Max="3" Min="0" Default="0" Inc="1" Row="0" Col="0" Page="0"
+             Tooltip="Spill colour. Custom rotates Spill Colour to Green, runs the Green algorithms, then rotates back."
+             Type="int" ChannelName="screen" DisplayName="Screen" Name="screen" ValueType="Popup">
+      <PopupEntry Title="Green" Value="0"/>
+      <PopupEntry Title="Blue" Value="1"/>
+      <PopupEntry Title="Cyan" Value="2"/>
+      <PopupEntry Title="Custom" Value="3"/>
+    </Uniform>
+    <Uniform Max="5" Min="0" Default="2" Inc="1" Row="1" Col="0" Page="0"
+             Tooltip="Green: cap on G. Blue: same labels, Double Blue is Double Green, Limit Blue is Limit Green. Cyan Coupled: lim is R except Limit Blue min(g,b). Independent: Green and Blue caps together. Custom: same Green formulas after hue-align."
+             Type="int" ChannelName="algorithm" DisplayName="Algorithm" Name="algorithm" ValueType="Popup">
+      <PopupEntry Title="Average" Value="0"/>
+      <PopupEntry Title="Max" Value="1"/>
+      <PopupEntry Title="Double Blue" Value="2"/>
+      <PopupEntry Title="Double Red" Value="3"/>
+      <PopupEntry Title="Limit Blue" Value="4"/>
+      <PopupEntry Title="Limit Red" Value="5"/>
+    </Uniform>
+    <Uniform Max="1" Min="0" Default="0" Inc="1" Row="2" Col="0" Page="0"
+             Tooltip="Cyan only. Coupled scales G and B together to keep cyan hue. Independent applies Green and Blue formulas at once (often stronger)."
+             UIConditionSource="screen" UIConditionValue="2" UIConditionType="Hide"
+             Type="int" ChannelName="cyan_mode" DisplayName="Cyan Mode" Name="cyan_mode" ValueType="Popup">
+      <PopupEntry Title="Coupled" Value="0"/>
+      <PopupEntry Title="Independent" Value="1"/>
+    </Uniform>
+    <Uniform Inc="0.01" Row="2" Col="0" Page="0" DisplayName="Spill Colour"
+             Tooltip="Used when Screen is Custom. Hue-aligned to Green so the Green algorithms apply. Gray or black is a no-op."
+             UIConditionSource="screen" UIConditionValue="3" UIConditionType="Hide"
+             ValueType="Colour" Type="vec3" ChannelName="spill_colour" Name="spill_colour">
+      <SubUniform ResDependent="None" Max="1000000.0" Min="-1000000.0" Default="0.0"/>
+      <SubUniform ResDependent="None" Max="1000000.0" Min="-1000000.0" Default="1.0"/>
+      <SubUniform ResDependent="None" Max="1000000.0" Min="-1000000.0" Default="1.0"/>
+    </Uniform>
+    <Uniform ResDependent="None" Max="1.5" Min="0.5" Default="1.0" Inc="0.01"
+             Tooltip="Scale the algorithm cap. 1 is the formula as written. 0.5 is stronger, 1.5 is weaker."
+             Row="3" Col="0" Page="0" Type="float" ChannelName="fine_tune" DisplayName="Fine Tune" Name="fine_tune">
+    </Uniform>
+    <Uniform ResDependent="None" Max="2.0" Min="0.0" Default="0.5" Inc="0.01"
+             Tooltip="Add gray equal to spill luma. 0 is off. Combines with Colour and Background."
+             Row="0" Col="1" Page="0" Type="float" ChannelName="restore" DisplayName="Luma" Name="restore">
+    </Uniform>
+    <Uniform ResDependent="None" Max="2.0" Min="0.0" Default="1.0" Inc="0.01"
+             Tooltip="Add Replace Colour times spill luma. Black Replace Colour adds nothing."
+             Row="1" Col="1" Page="0" Type="float" ChannelName="colour_amount" DisplayName="Colour" Name="colour_amount">
+    </Uniform>
+    <Uniform Inc="0.01" Row="2" Col="1" Page="0" DisplayName="Replace Colour"
+             Tooltip="Fill colour when Colour is above 0. Black adds nothing."
+             ValueType="Colour" Type="vec3" ChannelName="replace_colour" Name="replace_colour">
+      <SubUniform ResDependent="None" Max="1000000.0" Min="-1000000.0" Default="0.0"/>
+      <SubUniform ResDependent="None" Max="1000000.0" Min="-1000000.0" Default="0.0"/>
+      <SubUniform ResDependent="None" Max="1000000.0" Min="-1000000.0" Default="0.0"/>
+    </Uniform>
+    <Uniform ResDependent="None" Max="2.0" Min="0.0" Default="1.0" Inc="0.01"
+             Tooltip="Add Back times spill luma. Unconnected Back is black (adds nothing)."
+             Row="3" Col="1" Page="0" Type="float" ChannelName="background_amount" DisplayName="Background" Name="background_amount">
+    </Uniform>
+    <Uniform ResDependent="None" Max="1.0" Min="0.0" Default="1.0" Inc="0.01"
+             Tooltip="Despill strength, multiplied by Matte red. 0 is original Front."
+             Row="0" Col="2" Page="0" Type="float" ChannelName="amount" DisplayName="Amount" Name="amount">
+    </Uniform>
+    <Uniform Max="2" Min="0" Default="0" Inc="1" Row="1" Col="2" Page="0"
+             Tooltip="Result: despill. Spill: positive removed delta (fill amount). Diff: orig minus limited, signed. Amount and Replace ignored."
+             Type="int" ChannelName="view_mode" DisplayName="View" Name="view_mode" ValueType="Popup">
+      <PopupEntry Title="Result" Value="0"/>
+      <PopupEntry Title="Spill" Value="1"/>
+      <PopupEntry Title="Diff" Value="2"/>
+    </Uniform>
+  </Shader>
+  <Page Name="Despill" ColName0_2="Despill" ColName3_5="Despill" Page="0">
+    <Col Name="Screen" Col="0" Page="0"/>
+    <Col Name="Replace" Col="1" Page="0"/>
+    <Col Name="Output" Col="2" Page="0"/>
+  </Page>
+</ShaderNodePreset>

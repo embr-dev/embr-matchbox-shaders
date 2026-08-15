@@ -8,7 +8,8 @@
 shader_builder --help
 shader_builder -m -x embr_tint.glsl          # Matchbox: 検証 + XML
 shader_builder -l -x embr_gain.glsl          # Lightbox
-shader_builder -m -p embr_tint.glsl          # 暗号化 .mx
+shader_builder -m -p embr_tint.glsl          # 暗号化 .mx（シングルパス）
+shader_builder -m -p embr_blur.*.glsl        # 暗号化 .mx（マルチパス。全 .glsl を渡す）
 shader_builder -l -p embr_gain.glsl          # 暗号化 .lx
 shader_builder -m -t embr_tint.glsl          # 空の preset テンプレート
 shader_builder -u packaged.mx                # xml / png / .p を展開
@@ -39,7 +40,28 @@ creating XML file (embr_tint.xml) ... [OK]
 
 エラーがあると XML は作られない。2025 以前は警告でも XML が出ることがある。**2025.1 以降はより厳格**で、かつての警告がエラーになる。
 
-macOS で `ERROR: Compiling shaders requires a valid Display` なら XQuartz（X サーバ）が必要。Mac の builder は行番号付きエラーを出さないことが多い。可能なら Linux でコンパイルし、Mac で実機確認する。
+### マルチパスの `.mx`
+
+`shader_builder` は引数に列挙した `.glsl` だけをパッケージする。後続パスを自動では拾わない。
+
+- **正しい**: シェルのグロブで全パスを渡す。`embr_blur.*.glsl`（例: `embr_blur.1.glsl` … `embr_blur.8.glsl`）。同じベース名の `.xml` と `.1.glsl.p`（なければ `.1.glsl.png`）は自動で拾う。
+- **誤り**: `embr_blur.1.glsl` だけ。後続パスが `.mx` に入らず、Flame で `CreateRenderGraph` になる。コンパイルあり・なし（`-d`）どちらでも同じ。
+
+成功時は各パスが `compiling shader file …N.glsl ... [OK]` と出る。1 本しか出ていなければ全パスを渡せていない。
+
+観測（Flame 2025 / macOS）: 全パスを渡せばコンパイル `[OK]`。`.p` があれば `using thumbnail (…1.glsl.p)`。
+
+macOS で `ERROR : Compiling shaders requires a valid Display` または `Warning : Did not compile shaders because no valid Display has been found` は、**`DISPLAY` 環境変数が空**なだけ。実在する X サーバは見ていない（`DISPLAY=/tmp/dummy` でも警告は消える）。
+
+```bash
+env DISPLAY=:0 /opt/Autodesk/flame_2025/bin/shader_builder -m -p shaders/embr_morphology/embr_morphology.*.glsl
+```
+
+これで警告は消える。LOGIK でも Mac で同じ回避が通った例がある（[Compiling shaders requires a valid Display](https://forum.logik.tv/t/error-compiling-shaders-requires-a-valid-display/2952)）。恒久的にするなら [XQuartz](https://www.xquartz.org) を入れてログアウト／ログインすると `DISPLAY` が付く。builder は GLUT / OpenGL にリンクしている。
+
+**Matchbox モードの `.mx` サムネイルは Mac の `shader_builder` では焼けない。** `DISPLAY=:0` 付きでも空のまま（確認済み）。GLSL モードの sidecar `.p` は Mac で見える。同じ Mac Flame でも **Linux 製 `.mx` はサムネイルが出る。** サムネイル付きパッケージは Linux で作る。
+
+Mac の builder は行番号付きエラーを出さないことが多い。
 
 モダン `#version 430` では uniform block 内を **1 行 1 宣言**にする。`float adsk_result_w, adsk_result_h;` だと 2026.2 付近の builder が UI なし XML を出す。
 
@@ -64,18 +86,57 @@ Flame 内で見た目を作り、Node Prefs（Action なら Shader タブ）の 
 
 ## プロキシ（ブラウザサムネイル）
 
+GLSL モードはディスク上の sidecar **`.p`** を読む。PNG だけでは出ない。`.mx`（Matchbox モード）のサムネイルは **Linux の `shader_builder -m -p` が焼く**。Mac 製は `DISPLAY=:0` 付きでも空（確認済み）。同じ Mac Flame でも Linux 製 `.mx` は見える。
+
+解像度は PNG のまま `flame_proxy_icon` する。縮小は不要。
+
 | 出典 | サイズ |
 |------|--------|
-| Flame 2025 Help | 8-bit **128×92** PNG |
-| Shader Builder API Guide 2016 | **126×92** |
-| LOGIK / コミュニティ | `Name.glsl.png` + バイナリ `Name.glsl.p`。例: 268×194（幅が 4 の倍数） |
+| Flame 2025 Help の PNG | 8-bit **128×92**（このリポジトリのソース） |
+| Shader Builder API Guide 2016 / 公式 EXAMPLES の一部 `.p` | **126×92** |
+| LOGIK / コミュニティ | `Name.glsl.png` + `Name.glsl.p`。例: 268×194 |
+| [discreet_proxy](https://github.com/julik/discreet_proxy) 既定 | 126×92（入力 PNG のサイズを維持して書く） |
 
 ファイル名は Flame がアイコンを読む `.glsl` に合わせる。
 
 - シングルパス: `embr_tint.glsl.png` → `embr_tint.glsl.p`
-- マルチパス: 多くの場合 `embr_blur.1.glsl.png`（最初のパス）
+- マルチパス: `embr_blur.1.glsl.png` → `embr_blur.1.glsl.p`（最初のパス）
 
-このリポジトリでは 128×92 の PNG を最低限とし、`.p` は任意。LOGIK Matchbook に載せるなら `.glsl.png` と `.glsl.p` を揃える。
+変換は [discreet_proxy](https://github.com/julik/discreet_proxy) の `flame_proxy_icon`（Julik Tarkhanov）。サムネイル付き `.mx` は Linux で `.p` を作ってからパッケージする。
+
+```bash
+# Linux（サムネイル付き .mx）
+flame_proxy_icon --from-png embr_morphology.1.glsl.png
+shader_builder -m -p embr_morphology.*.glsl
+```
+
+```bash
+# macOS（GLSL モード用 sidecar のみ）
+flame_proxy_icon --from-png shaders/embr_morphology/embr_morphology.1.glsl.png
+```
+
+### Mac から Linux へ SSH して焼く
+
+可能。ソースを送って Linux の `shader_builder` だけ走らせ、`.mx` を回収する。
+
+```bash
+tools/pack_mx_linux.sh user@flame-linux shaders/embr_morphology
+```
+
+手でやるなら:
+
+```bash
+rsync -a shaders/embr_morphology/ user@host:/tmp/embr_morphology/
+ssh user@host 'export DISPLAY=:0; cd /tmp/embr_morphology; /opt/Autodesk/flame_2025/bin/shader_builder -m -p embr_morphology.*.glsl'
+scp user@host:/tmp/embr_morphology/embr_morphology.mx shaders/embr_morphology/
+```
+
+- `embr_morphology.*.glsl` は **SSH の先で**展開する。Mac の zsh で先に展開するとローカルパスが送られて失敗する。引用符で囲む。
+- Linux も GUI コンソールが無い SSH だけだと `no valid Display` になる。その機にログインセッションがあるなら `DISPLAY=:0`（[LOGIK](https://forum.logik.tv/t/error-compiling-shaders-requires-a-valid-display/2952)）。
+- `.p` は Mac で作って同梱してよい。Linux に `flame_proxy_icon` が無ければそれで足りる。
+- 共有ディスク上なら rsync は不要。Linux 側でそのパスを `cd` して `shader_builder` するだけ。
+
+LOGIK Matchbook に載せるなら `.glsl.png` と `.glsl.p` を揃える。
 
 ## インストールパス
 

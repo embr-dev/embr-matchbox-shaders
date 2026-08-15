@@ -13,7 +13,7 @@ embr_blur.xml
 - XML は `<Shader Index="1">` … `<Shader Index="2">`。
 - 後続パスは前パス結果を `uniform sampler2D adsk_results_pass1;` として読む（番号は 1 始まり）。
 - XML のその Uniform に `Index` / `NoInput` は付けない。名前が規約。
-- ブラウザではルートグループ（`embr_blur.glsl` 相当）を選ぶ。`-p` で単一 `.mx` にまとめると迷いが減る。
+- ブラウザではルートグループ（`embr_blur.glsl` 相当）を選ぶ。`-p` で単一 `.mx` にまとめると迷いが減る。**全パスを渡す**: `shader_builder -m -p embr_blur.*.glsl`。`.1.glsl` だけだと後続がパッケージに入らない（[packaging.md](packaging.md)）。
 - 公式の高速ブラー相当: `EXAMPLES/PyramidBlur`。
 
 同じコントロールを全パスで使うときは [xml-schema.md](xml-schema.md) の `<Duplicate>`。

@@ -48,6 +48,8 @@ Cursor 用に再構成した二次資料。規範は常に Autodesk の現行 He
 |------|------|
 | `ResDependent` vs `ResDependant` | builder 出力の `ResDependent` を使う |
 | `PopupEntry` vs DTD `PopEntry` | `PopupEntry` |
-| プロキシ 128×92 vs 126×92 vs 268×194 | 公式 2025 は 128×92。LOGIK は `.glsl.png` / `.glsl.p` |
+| プロキシ 128×92 vs 126×92 vs 268×194 | PNG ソースは 128×92。公式 EXAMPLES の一部 `.p` は 126×92。縮小は `.mx` サムネイルには無関係 |
+| Flame ブラウザのサムネイル | GLSL は sidecar `.p`。`.mx` は **Linux の `shader_builder -p`**。Mac 製は `DISPLAY=:0` でも空（同じ Mac Flame でも Linux 製は見える） |
+| `.p` の変換 | `gem install discreet_proxy` → `flame_proxy_icon --from-png`（Julik Tarkhanov）。PNG 解像度のまま |
 | `shader_builder` パス | `/opt/Autodesk/.../bin` |
 | LinearLight 番号 | 2025.1 で 32=PsLinearLight、37=Flame LinearLight |

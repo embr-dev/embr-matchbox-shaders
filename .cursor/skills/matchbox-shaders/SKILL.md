@@ -30,7 +30,8 @@ Lightbox を頼まれたときだけ [lightbox.md](../../../docs/api/lightbox.md
 - MIT。`CommercialUsePermitted="True"`（派生元が NC なら False と README に例外）
 - DisplayName / Description は英語（Flame / LOGIK 慣例）。必要なら Description に日本語を併記
 - 入力最大 6。`LimitInputsToTexture="True"`
-- ソースをコミットする。`.mx` は任意の配布物でありソースの代替にしない
+- ソースをコミットする。`.mx` は任意の配布物でありソースの代替にしない。マルチパスの `-p` は `Name.*.glsl`（全パス）。`.1.glsl` だけだと後続が入らない
+- GLSL のサムネイルは sidecar `.p`（`flame_proxy_icon`、PNG 解像度のまま）。`.mx` のサムネイルは **Linux** の `shader_builder -m -p`。Mac からは `tools/pack_mx_linux.sh user@host shaders/<name>`
 
 ## 作業手順
 
@@ -38,7 +39,8 @@ Lightbox を頼まれたときだけ [lightbox.md](../../../docs/api/lightbox.md
 2. GLSL を書く。uniform と使う `adsk_*` を前方宣言。`main()` 末尾で一度だけ `gl_FragColor`
 3. XML を手で書くか、ユーザー環境に `shader_builder` があれば `shader_builder -m -x` で生成して編集
 4. [gotchas.md](../../../docs/api/gotchas.md) の禁止事項を確認
-5. `shaders/<name>/README.md` に何をするシェーダか、入力、主なパラメータを短く書く
+5. サムネイルは `flame_proxy_icon --from-png`（PNG 解像度のまま）。`.mx` を出すなら Linux でパッケージ（[packaging.md](../../../docs/api/packaging.md)）
+6. `shaders/<name>/README.md` に何をするシェーダか、入力、主なパラメータを短く書く
 
 ## GLSL チェック
 

@@ -1,6 +1,8 @@
-# embr_median（仕様・未実装）
+# embr_median（仕様）
 
 表示名: **Embr Median**。向き付き median。ソルトペッパー、スキャンライン、細いゴミ用。
+
+**2026-08-15 中断。** 大 Size の 2D らしい median が Matchbox 制約内で実用に届かなかった。`shaders/embr_median*` / `embr_typical` は削除済み。再開時はこのファイルの「中断ログ」から。
 
 このファイルが実装時の正本。変更したら「未決」と「却下」も更新する。
 
@@ -54,25 +56,25 @@ for iter in 0 .. BISECT_ITERS-1:
 
 ### Mode 0 — Disk（既定）= なんちゃって 2D
 
-半径 `R` の円盤上から **標本数 N を固定**し、その集合の本物の median を取る。`R` は点の間隔だけを変える。
+半径 `R` の円盤上から **標本数 N を UI の Samples で決め**、その集合の本物の median を取る。`R` は点の間隔だけを変える。配置は Vogel ひまわり（面積一様）。等間隔極座標（16 方向 × 4 環）は中心 33 点が中央値票を独占するので使わない。
 
-| 定数 | 値 | 理由 |
-|------|-----|------|
-| `DISK_DIRS` | 16 | 22.5° 刻み。等方に近づける |
-| `DISK_RINGS` | 4 | 中心を除く環。合計点は中心 + 16×4 = **65**（奇数） |
-| 角度オフセット | `angle`（度） | 水平・垂直・回転 |
+| 定数 / UI | 値 | 理由 |
+|-----------|-----|------|
+| `disk_samples` | 既定 65、Min 9、Max 257、Inc 2 | 奇数。rank `(N+1)/2` |
+| 黄金角 | 137.508° | `360 / φ²` |
+| 角度オフセット | `angle`（度） | パターン全体の回転 |
 
-点 `k = ring * DISK_DIRS + dir`（0-based、中心は別）:
+点 `k = 0 .. N-1`:
 
-- 中心: `uv`
-- `dir = 0..15`, `ring = 1..4`
-- `deg = angle + dir * (360 / 16)`
-- `dist = (float(ring) / float(DISK_RINGS)) * float(R)` ピクセル
+- `deg = angle + k * 137.508`
+- `dist = sqrt(k / (N-1)) * R` ピクセル（`k=0` は中心、最後は半径 `R`）
 - オフセット: `(cos(deg)*dist/W, sin(deg)*dist/H)`
 
-`R=0` は no-op（Front を返す）。`R=1` では点が重なる。小さい `R` は Exact に近い。大きい `R` は間引き円盤。間の塊は残ることがある。これは仕様。
+偶数は +1 して奇数にする。`adsk_degrade` 時は N を最大 65。
 
-テクスチャ読み: 二分探索 12 回 × 65 点 ≈ **780 / 画素**（Luma）。`R` に依存しない。
+`R=0` は no-op（Front を返す）。`R=1` では点が重なる。小さい `R` は Exact に近い。大きい `R` は間引き円盤。隙間が出たら Samples を上げる。点の間隔より大きい塊は残ることがある。これは仕様。
+
+テクスチャ読み: 二分探索 12 回 × N ≈ **12N / 画素**（Luma）。Size には依存しない。N=65 で約 780、N=257 で約 3100。
 
 ### Mode 1 — Exact 2D
 
@@ -134,16 +136,17 @@ UI グリッド: Page 0、Col 0–1、Row 0–3。Morph に近い配置。
 |---------|------|---------|---------|------|
 | `channel` | int Popup | 1 Luma | 0,0 | 0 RGB（チャンネル独立）、1 Luma |
 | `mode` | int Popup | 0 Disk | 1,0 | 0 Disk、1 Exact 2D、2 Line |
+| `disk_samples` | int | 65 | 2,0 | Disk の点数。9–257、Inc 2。奇数。Exact / Line では Disable |
 | `size` | int | 0 | 0,1 | 半径 px。Min 0、Max 256、Inc 1。0 は no-op |
 | `angle` | float | 0 | 1,1 | 度。Min -360、Max 360、Inc 1。Disk のサンプル回転と Line の方向。Exact では無視 |
 | `mix_amount` | float | 1 | 2,1 | 0 原画、1 効果のみ |
 | （Strength） | sampler | — | ソケット | 上表 |
 
-DisplayName: Channel / Mode / Size / Angle / Mix。Mode の PopupEntry: `Disk` / `Exact 2D` / `Line`。
+DisplayName: Channel / Mode / Samples / Size / Angle / Mix。Mode の PopupEntry: `Disk` / `Exact 2D` / `Line`。
 
 Tooltip 要点（英語）:
 
-- Disk: fixed 65 samples on a disk; Size scales spacing; not a dense 2D median at large Size
+- Disk: sunflower samples; Samples sets count (default 65); Size scales spacing; not a dense 2D median at large Size
 - Exact 2D: dense disk, Size clamped to 4, Angle ignored
 - Line: 1D median along Angle; Size up to 256
 - Channel Luma: morph luminance, keep chromaticity like morphology
@@ -188,19 +191,19 @@ XML の Front: Disk/Line 用に LINEAR を書いてよい。Exact の NEAREST �
 
 ## Adaptive Degradation
 
-`adsk_degrade` が true なら `r = min(r, 8)`。Exact は元から ≤4 なので影響なし。Line/Disk の大半径プレビュー用。属性だけ立てず、GLSL で分岐すること。
+`adsk_degrade` が true なら `r = min(r, 8)`、Disk の Samples は `min(N, 65)`。Exact は元から ≤4 なので半径は影響なし。Line/Disk の大半径プレビュー用。属性だけ立てず、GLSL で分岐すること。
 
 ## 性能目安
 
 | Mode | Size | おおよその読み（Luma） |
 |------|------|------------------------|
-| Disk | 任意 | ~780 |
+| Disk | 任意 | ~12 × Samples（65→~780、257→~3100） |
 | Exact | ≤4 | ~12 × 点数（≤81 → ~1000） |
 | Line | 8 | ~200 |
 | Line | 64 | ~1500 |
 | Line | 256 | ~6000（degrade 時は Size 8 相当） |
 
-RGB は ×3。Disk を既定にするのはコストが Size に依存しないため。
+RGB は ×3。Disk のコストは Size ではなく Samples に比例する。
 
 ## GLSL 骨格（実装時）
 
@@ -208,7 +211,7 @@ RGB は ×3。Disk を既定にするのはコストが Size に依存しない�
 uniform float adsk_result_w, adsk_result_h;
 uniform bool adsk_degrade;
 uniform sampler2D front, strength;
-uniform int channel, mode, size;
+uniform int channel, mode, size, disk_samples;
 uniform float angle, mix_amount;
 float adsk_getLuminance(vec3 color);
 ```
@@ -250,6 +253,30 @@ Morph の README と同じ表: 何をするか、Files、Inputs、Controls、Mod
 - Luma で色相が極端に飛ばない
 - `adsk_degrade` で Line 大半径が軽くなる
 - CreateRenderGraph が出ない（Mac / Linux）
+
+## 中断ログ（2026-08-15）
+
+大 Size の「2D らしい median」を Matchbox で出す試みを止めた。再開するまで median 系を優先しない。
+
+試したもの: Exact 2D（R≤4）、Line、Disk（極座標 16×4 → Vogel ひまわり、Samples 可変）、Snap / Stride / Iter 検証、Embr Typical（4 象限／8 Line の分散最小→中央値）。
+
+分かったこと:
+
+- 疎な点集合（N ≪ πR²）の中央値は、並べ方を変えても **カーネル模様が絵に焼ける**。Size およそ 30 までひまわりはそれっぽく、40 付近で破綻。
+- Samples を増やしてもあまり改善しない。LINEAR のにじみと、点数が窓面積に対して足りないことが主因。
+- 等間隔 4 環は内側 33 点が中央値票を独占し、大 Size でも局所窓に見える。ひまわりはそれを直すが模様は残る。
+- 画素スナップ、ストライド Exact、小さい Exact の反復も、大半径では別種の模様／油画になる。
+- ランダム点＋後段ノイズ除去は、砂かブラーになりやすい（未実装）。
+- Exact（密・小さい）と Line（1D・向き付き）は演算として正しい。問題は「任意 Size の 2D」だけ。
+- ノード名 Median で大きい円を約束すると、Photoshop 箱と比較されて負ける。Typical は選び方が本体。
+
+再開するときの候補（約束し直す）:
+
+- Median は Dust（Exact）と Scratch（Line）だけにする
+- 大平滑は領域統計（Kuwahara / Typical）で、2D median と呼ばない
+- 任意 R の密な 2D median は Matchbox ではやらない（既存の非目標どおり）
+
+実装フォルダは削除済み。再開時はここに書いた約束で作り直す。
 
 ## 却下ログ（再提案しない）
 

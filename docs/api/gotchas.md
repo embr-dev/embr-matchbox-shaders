@@ -28,7 +28,9 @@ Flame が描画グラフを組めず、ログに `PIPELINE: CProcessShader::Rend
 
 ## XML / builder
 
-- Mac の `shader_builder` は「コンパイル失敗」だけ出し、行番号を出さないことが多い → Linux でビルド。
+- マルチパスの `-p` は `Name.*.glsl` で**全パス**を渡す。`.1.glsl` だけだと後続が `.mx` に入らず、Flame で `CreateRenderGraph` になる（詳細は [packaging.md](packaging.md)）。
+- `Name="mode"` かつ `Min=0 Max=3` の int / Popup は、Flame の Matchbox UI が列 0–3 の切替（`ShaderUISelectColumn`）に使うことがある。値 0 以外で他コントロールが消える。回避: 別名（`view` など）と float、Max を 3 にしない。
+- Mac の `shader_builder` は `DISPLAY` が空だとコンパイルをスキップする。`env DISPLAY=:0` で警告は消えるが、**`.mx` の Matchbox サムネイルはそれでも空**。Linux でパッケージする。行番号は出ないことが多い。
 - モダン形式: uniform block は **1 行 1 メンバー**。コンマ並びは XML UI が空になる（2026.2）。
 - `adsk_results_passN` に `Index` / `NoInput` を付けない。
 - 複数パスの同一パラメータは `<Duplicate>`。付け忘れると UI が二重。
@@ -42,7 +44,7 @@ Flame が描画グラフを組めず、ログに `PIPELINE: CProcessShader::Rend
 | | Linux | macOS |
 |--|-------|--------|
 | クラシック GLSL | 130 相当まで余裕 | 120 相当が安全 |
-| builder のエラー | 行番号あり | 貧弱。XQuartz 必須 |
+| builder のエラー | 行番号あり | 貧弱。`DISPLAY=:0` で警告は消える。`.mx` サムネイルは Linux |
 | 確認 | 必須 | 必須（Linux だけで ship しない） |
 
 ## ブラウザに出ない
@@ -51,6 +53,7 @@ Flame が描画グラフを組めず、ログに `PIPELINE: CProcessShader::Rend
 2. Mode を Matchbox ↔ GLSL。
 3. マルチパスはルート名で読む。バラバラの `.1.glsl` だけ置かない。
 4. XML の `Name` がファイル名と大きく違うと迷う。`embr_` で揃える。
+5. GLSL モードでサムネイルが出て Matchbox（`.mx`）だけ空 → Mac 製 `.mx`。`DISPLAY=:0` でも直らない。Linux で `flame_proxy_icon` してから `shader_builder -m -p`（[packaging.md](packaging.md)）。
 
 ## 色・ブレンド
 
